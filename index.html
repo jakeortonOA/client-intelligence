@@ -445,7 +445,7 @@ ${c.watchTriggers.join(", ")}
 Advisor notes:
 ${c.advisoryNotes}
 
-Search the last 30 days of UK-relevant news for this client, including competitors, customers, suppliers, regulators, market conditions and watch items.
+Identify the four most commercially significant developments from the last 30 days affecting this client, prioritising competitors, customers, suppliers, regulation and market conditions.
 
 Return ONLY valid JSON.
 
@@ -463,11 +463,22 @@ Return ONLY valid JSON.
   ]
 }
 
-Return 4-6 items.
+Rules:
+Return EXACTLY 4 items.
+Summary: maximum 60 words.
+CallToAction: maximum 30 words.
+Headline: maximum 12 words.
+Detail: maximum 45 words.
+Relevance: maximum 8 words.
+Priority must be exactly one of: High, Medium, Low.
+SuggestedTalkingPoint: maximum 20 words.
+Use concise business language.
+Do not repeat information between items.
+If insufficient evidence exists, omit the item rather than speculate.
+Return ONLY valid JSON.
 No markdown.
-No explanation.
-No backticks.
-Return ONLY valid JSON
+No code fences.
+No explanations.
 `;
 
   try {

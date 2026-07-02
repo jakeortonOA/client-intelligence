@@ -256,43 +256,14 @@
 
 <script>
 let CLIENTS = [
-  {
-    name: "Meridian Fabrications Ltd",
-    sector: "Steel & Metal Fabrication",
-    subSector: "Structural steel fabrication for commercial construction",
-    geography: "Midlands, UK — exports to Northern Europe",
-    competitors: ["Barrett Steel", "Severfield PLC", "Fisher Engineering"],
-    keyCustomers: ["Balfour Beatty", "Kier Group", "Morgan Sindall"],
-    keySuppliers: ["Tata Steel UK", "British Steel", "Metals4U"],
-    regulatoryBodies: ["HSE", "BCSA", "Environment Agency"],
-    watchTriggers: ["steel tariffs", "construction output UK", "net zero building regulations", "energy costs UK manufacturing"],
-    advisoryNotes: "Owner-managed, considering exit in 3–5 years. EBITDA sensitive to steel price volatility. Key dependency on two major contracts with Kier. Covenant review due Q3."
-  },
-  {
-    name: "Apex Logistics Group",
-    sector: "Road Freight & Distribution",
-    subSector: "Temperature-controlled distribution for food & pharma",
-    geography: "UK-wide, cross-channel EU routes",
-    competitors: ["Wincanton", "Kuehne+Nagel UK", "XPO Logistics"],
-    keyCustomers: ["Tesco", "Asda", "Lloyds Pharmacy"],
-    keySuppliers: ["Volvo Trucks UK", "BP Fuel Cards", "Microlise"],
-    regulatoryBodies: ["DVSA", "FORS", "Food Standards Agency"],
-    watchTriggers: ["HGV driver shortage UK", "diesel prices", "cross-channel customs", "cold chain regulation"],
-    advisoryNotes: "Recent acquisition of smaller regional carrier — integration ongoing. Tesco contract renewal due in 8 months, critical to turnover."
-  },
-  {
-    name: "Clearwater Dental Group",
-    sector: "Healthcare — Private Dentistry",
-    subSector: "Multi-site private and mixed NHS dental practices",
-    geography: "West Midlands, 6 sites",
-    competitors: ["Bupa Dental Care", "Portman Dental", "Rodericks Dental"],
-    keyCustomers: ["NHS England", "Private patient base"],
-    keySuppliers: ["Henry Schein", "Dental Directory", "Patterson Dental"],
-    regulatoryBodies: ["CQC", "GDC", "NHS England"],
-    watchTriggers: ["NHS dental contract reform", "CQC inspection regime", "private dentistry pricing"],
-    advisoryNotes: "Two sites underperforming on NHS UDA targets — potential clawback risk. Owner exploring partial or full exit."
-  }
+    ...
 ];
+
+const savedClients = localStorage.getItem("clients");
+
+if (savedClients) {
+    CLIENTS = JSON.parse(savedClients);
+}
 
 let currentIdx = 0;
 let modalMode = 'add';
@@ -386,9 +357,18 @@ function saveClient() {
     watchTriggers: splitCSV(document.getElementById('f_watchTriggers').value),
     advisoryNotes: document.getElementById('f_advisoryNotes').value.trim()
   };
-  if (modalMode === 'add') { CLIENTS.push(client); currentIdx = CLIENTS.length - 1; }
-  else { CLIENTS[currentIdx] = client; }
-  closeModal(); rebuildSelect();
+ if (modalMode === 'add') {
+    CLIENTS.push(client);
+    currentIdx = CLIENTS.length - 1;
+} else {
+    CLIENTS[currentIdx] = client;
+}
+
+// Save updated client list
+localStorage.setItem("clients", JSON.stringify(CLIENTS));
+
+closeModal();
+rebuildSelect();
   document.getElementById('clientSelect').value = currentIdx;
   loadClient();
 }
@@ -399,12 +379,22 @@ function openConfirmDelete() {
 }
 function closeConfirm() { document.getElementById('confirmOverlay').classList.add('hidden'); }
 function deleteClient() {
-  if (CLIENTS.length === 1) { alert("Can't remove the last client."); closeConfirm(); return; }
-  CLIENTS.splice(currentIdx, 1);
-  currentIdx = Math.max(0, currentIdx - 1);
-  closeConfirm(); rebuildSelect();
-  document.getElementById('clientSelect').value = currentIdx;
-  loadClient();
+    if (CLIENTS.length === 1) {
+        alert("Can't remove the last client.");
+        closeConfirm();
+        return;
+    }
+
+    CLIENTS.splice(currentIdx, 1);
+    currentIdx = Math.max(0, currentIdx - 1);
+
+    // Save updated client list
+    localStorage.setItem("clients", JSON.stringify(CLIENTS));
+
+    closeConfirm();
+    rebuildSelect();
+    document.getElementById('clientSelect').value = currentIdx;
+    loadClient();
 }
 
 async function generateBrief() {
@@ -531,7 +521,15 @@ console.log("========== CLAUDE RESPONSE ==========");
 console.log(cleaned);
 console.log("=====================================");
 
-const brief = JSON.parse(cleaned);
+const jsonStart = cleaned.indexOf("{");
+
+if (jsonStart === -1) {
+    throw new Error("Claude did not return JSON.");
+}
+
+const jsonText = cleaned.slice(jsonStart);
+
+const brief = JSON.parse(jsonText);
 
 renderBrief(brief, c.name);
   } catch(err) {

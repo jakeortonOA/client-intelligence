@@ -488,10 +488,29 @@ Return ONLY valid JSON
 })
     });
     const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error?.message || 'API error');
-    const text = data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
-    const brief = JSON.parse(text.replace(/```json|```/g,'').trim());
-    renderBrief(brief, c.name);
+
+if (!resp.ok) {
+    console.error(data);
+    throw new Error(data.error?.message || 'API error');
+}
+
+const text = data.content
+    .filter(block => block.type === 'text')
+    .map(block => block.text)
+    .join('');
+
+const cleaned = text
+    .replace(/```json/g, '')
+    .replace(/```/g, '')
+    .trim();
+
+console.log("========== CLAUDE RESPONSE ==========");
+console.log(cleaned);
+console.log("=====================================");
+
+const brief = JSON.parse(cleaned);
+
+renderBrief(brief, c.name);
   } catch(err) {
     document.getElementById('mainPanel').innerHTML = `<div style="padding:32px"><div class="error-box">Error: ${err.message}. Check your API key and try again.</div></div>`;
   }

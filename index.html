@@ -290,6 +290,25 @@ async function saveBriefing(clientId, brief) {
     }
 
 }
+async function loadLatestBriefing(clientId) {
+
+    const { data, error } = await sb
+        .from("briefings")
+        .select("*")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) {
+        console.error(error);
+        return null;
+    }
+
+    return data;
+
+}
+ 
 async function init() {
 
     const { data, error } = await sb
@@ -339,7 +358,8 @@ function rebuildSelect() {
         currentIdx = -1;
     }
 }
-function loadClient() {
+async function loadClient() {
+
     const sel = document.getElementById('clientSelect');
 
     currentIdx = parseInt(sel.value);
@@ -348,8 +368,17 @@ function loadClient() {
         return;
     }
 
-    renderProfile(CLIENTS[currentIdx]);
+    const c = CLIENTS[currentIdx];
+
+    renderProfile(c);
     resetMain();
+
+    const latest = await loadLatestBriefing(c.id);
+
+    if (latest) {
+        renderBrief(latest.briefing_json, c.name);
+    }
+
 }
 
 function resetMain() {

@@ -267,31 +267,39 @@ const sb = window.supabase.createClient(
     SUPABASE_KEY
 );
  
-const savedClients = localStorage.getItem("clients");
-
-if (savedClients) {
-    CLIENTS = JSON.parse(savedClients);
-}
-
 let currentIdx = 0;
 let modalMode = 'add';
 
 function splitCSV(s) { return s.split(',').map(x=>x.trim()).filter(Boolean); }
 
-function init() {
+async function init() {
+
+    const { data, error } = await sb
+        .from("clients")
+        .select("*")
+        .order("name");
+
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    CLIENTS = data || [];
+
     rebuildSelect();
 
     if (CLIENTS.length > 0) {
         currentIdx = 0;
-        document.getElementById('clientSelect').value = currentIdx;
+        document.getElementById("clientSelect").value = 0;
         loadClient();
     } else {
-        document.getElementById('mainPanel').innerHTML = `
+        document.getElementById("mainPanel").innerHTML = `
             <div class="empty-state">
                 <h2>No clients yet</h2>
                 <p>Click <strong>Add Client</strong> to create your first client.</p>
             </div>`;
     }
+
 }
 function rebuildSelect() {
     const sel = document.getElementById('clientSelect');
@@ -600,23 +608,7 @@ function renderBrief(brief, clientName) {
 document.getElementById('clientModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
 document.getElementById('confirmOverlay').addEventListener('click',function(e){if(e.target===this)closeConfirm();});
 
-async function testSupabase() {
-
-    const { data, error } = await sb
-        .from("clients")
-        .select("*");
-
-    if (error) {
-        console.error("SUPABASE ERROR:", error);
-    } else {
-        console.log("✅ SUPABASE CONNECTED");
-        console.log(data);
-    }
-
-    init();
-}
-
-testSupabase();
+init();
 </script>
 </body>
 </html>

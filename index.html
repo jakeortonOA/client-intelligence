@@ -418,81 +418,81 @@ async function generateBrief() {
       <div class="loading-text">Searching for intelligence on ${c.name}…</div>
     </div>`;
 
-  const prompt = `You are an intelligence analyst for a UK business advisory firm. Generate a structured client intelligence brief for the following client.
+  const prompt = `
+You are an intelligence analyst for a UK business advisory firm.
 
-CLIENT PROFILE:
-- Business: ${c.name}
+Client:
+- ${c.name}
 - Sector: ${c.sector}
 - Sub-sector: ${c.subSector}
 - Geography: ${c.geography}
-- Key Competitors: ${c.competitors.join(', ')}
-- Key Customers: ${c.keyCustomers.join(', ')}
-- Key Suppliers: ${c.keySuppliers.join(', ')}
-- Regulatory Bodies: ${c.regulatoryBodies.join(', ')}
-- Watch Triggers: ${c.watchTriggers.join(', ')}
-- Advisory Notes: ${c.advisoryNotes}
 
-Search for recent news (last 30 days) across: sub-sector market conditions, named competitors, named customers, named suppliers, regulatory changes, and watch triggers. Focus on UK-relevant news.
+Competitors:
+${c.competitors.join(", ")}
 
-Return ONLY valid JSON, no markdown, no backticks:
-{"summary":"2-3 sentence overall intelligence summary","callToAction":"Single most important reason to contact this client this week","items":[{"headline":"short headline","detail":"2-3 sentences on what happened and why it matters specifically for this client","relevance":"competitor / customer / supplier / regulatory / market","priority":"High or Medium or Low","suggestedTalkingPoint":"one specific question the advisor should raise"}]}
+Customers:
+${c.keyCustomers.join(", ")}
 
-4-6 items. High = call this week. Medium = raise at next meeting. Low = background. Be specific to this client.`;
+Suppliers:
+${c.keySuppliers.join(", ")}
+
+Regulators:
+${c.regulatoryBodies.join(", ")}
+
+Watch:
+${c.watchTriggers.join(", ")}
+
+Advisor notes:
+${c.advisoryNotes}
+
+Search the last 30 days of UK-relevant news for this client, including competitors, customers, suppliers, regulators, market conditions and watch items.
+
+Return ONLY valid JSON.
+
+{
+  "summary":"",
+  "callToAction":"",
+  "items":[
+    {
+      "headline":"",
+      "detail":"",
+      "relevance":"",
+      "priority":"",
+      "suggestedTalkingPoint":""
+    }
+  ]
+}
+
+Return 4-6 items.
+No markdown.
+No explanation.
+No backticks.
+`;
 
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 600,
-        tools: [
-            }
-        ],
-        messages: [
-            {
-                role: 'user',
-                content: prompt
-            }
-        ]
-    })
-});
-
-console.log("Full API response:", data);
-
-if (!resp.ok) {
-    throw new Error(data.error?.message || "API error");
-}
-
-const text = data.content
-    .filter(block => block.type === "text")
-    .map(block => block.text)
-    .join("");
-
-console.log("Claude returned:");
-console.log(text);
-
-const cleaned = text.replace(/```json|```/g, "").trim();
-
-try {
-    const brief = JSON.parse(cleaned);
+      headers: { 'Content-Type':'application/json', 'x-api-key':apiKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({
+    model: "claude-sonnet-4-6",
+    max_tokens: 600,
+    tools: [{
+        type: "web_search_20250305",
+        name: "web_search"
+    }],
+    messages: [{
+        role: "user",
+        content: prompt
+    }]
+})
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error?.message || 'API error');
+    const text = data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+    const brief = JSON.parse(text.replace(/```json|```/g,'').trim());
     renderBrief(brief, c.name);
-} catch (err) {
-    console.error("JSON parse failed");
-    console.error(cleaned);
-
-    document.getElementById("mainPanel").innerHTML = `
-        <div class="error-box">
-            <strong>Claude did not return valid JSON.</strong><br><br>
-            Open Developer Tools (F12 → Console) to see exactly what Claude returned.
-        </div>
-    `;
-}
+  } catch(err) {
+    document.getElementById('mainPanel').innerHTML = `<div style="padding:32px"><div class="error-box">Error: ${err.message}. Check your API key and try again.</div></div>`;
   }
 }
 

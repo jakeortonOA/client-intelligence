@@ -254,9 +254,19 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+ 
 <script>
 let CLIENTS = [];
 
+const SUPABASE_URL = "https://luxdrpiairvyivfiqkav.supabase.co";
+const SUPABASE_KEY = "sb_publishable_oneB0J64NSARD9OFBIXuxg_77elLG8D";
+
+const supabase = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+);
+ 
 const savedClients = localStorage.getItem("clients");
 
 if (savedClients) {
@@ -590,7 +600,23 @@ function renderBrief(brief, clientName) {
 document.getElementById('clientModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
 document.getElementById('confirmOverlay').addEventListener('click',function(e){if(e.target===this)closeConfirm();});
 
-init();
+async function testSupabase() {
+
+    const { data, error } = await supabase
+        .from("clients")
+        .select("*");
+
+    if (error) {
+        console.error("SUPABASE ERROR:", error);
+    } else {
+        console.log("✅ SUPABASE CONNECTED");
+        console.log(data);
+    }
+
+    init();
+}
+
+testSupabase();
 </script>
 </body>
 </html>

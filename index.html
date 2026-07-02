@@ -271,7 +271,25 @@ let currentIdx = 0;
 let modalMode = 'add';
 
 function splitCSV(s) { return s.split(',').map(x=>x.trim()).filter(Boolean); }
+ 
+async function saveBriefing(clientId, brief) {
 
+    const { error } = await sb
+        .from("briefings")
+        .insert({
+            client_id: clientId,
+            summary: brief.summary,
+            call_to_action: brief.callToAction,
+            briefing_json: brief
+        });
+
+    if (error) {
+        console.error("Failed to save briefing:", error);
+    } else {
+        console.log("Briefing saved.");
+    }
+
+}
 async function init() {
 
     const { data, error } = await sb
@@ -635,6 +653,8 @@ const jsonText = cleaned.slice(jsonStart);
 
 const brief = JSON.parse(jsonText);
 
+await saveBriefing(c.id, brief);
+   
 renderBrief(brief, c.name);
   } catch(err) {
     document.getElementById('mainPanel').innerHTML = `<div style="padding:32px"><div class="error-box">Error: ${err.message}. Check your API key and try again.</div></div>`;

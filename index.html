@@ -487,7 +487,13 @@ Return ONLY valid JSON
   ]
 })
     });
-    const data = await resp.json();
+    const raw = await resp.text();
+
+console.log("========== RAW RESPONSE ==========");
+console.log(raw);
+console.log("==================================");
+
+const data = JSON.parse(raw);
 
 if (!resp.ok) {
     console.error(data);

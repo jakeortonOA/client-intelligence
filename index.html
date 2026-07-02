@@ -270,24 +270,33 @@ let modalMode = 'add';
 
 function splitCSV(s) { return s.split(',').map(x=>x.trim()).filter(Boolean); }
 
-function init() { rebuildSelect(); loadClient(); }
+function init() {
+    rebuildSelect();
 
-function rebuildSelect() {
-  const sel = document.getElementById('clientSelect');
-  const prev = parseInt(sel.value) || 0;
-  sel.innerHTML = '';
-  CLIENTS.forEach((c,i) => {
-    const o = document.createElement('option');
-    o.value = i; o.textContent = c.name; sel.appendChild(o);
-  });
-  sel.value = Math.min(prev, CLIENTS.length - 1);
-  currentIdx = parseInt(sel.value);
+    if (CLIENTS.length > 0) {
+        currentIdx = 0;
+        document.getElementById('clientSelect').value = currentIdx;
+        loadClient();
+    } else {
+        document.getElementById('mainPanel').innerHTML = `
+            <div class="empty-state">
+                <h2>No clients yet</h2>
+                <p>Click <strong>Add Client</strong> to create your first client.</p>
+            </div>`;
+    }
 }
 
 function loadClient() {
-  currentIdx = parseInt(document.getElementById('clientSelect').value);
-  renderProfile(CLIENTS[currentIdx]);
-  resetMain();
+    const sel = document.getElementById('clientSelect');
+
+    currentIdx = parseInt(sel.value);
+
+    if (isNaN(currentIdx) || currentIdx < 0 || currentIdx >= CLIENTS.length) {
+        return;
+    }
+
+    renderProfile(CLIENTS[currentIdx]);
+    resetMain();
 }
 
 function resetMain() {

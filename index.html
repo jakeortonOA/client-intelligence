@@ -283,7 +283,26 @@ function init() {
             </div>`;
     }
 }
+function rebuildSelect() {
+    const sel = document.getElementById('clientSelect');
+    const prev = parseInt(sel.value) || 0;
 
+    sel.innerHTML = '';
+
+    CLIENTS.forEach((c, i) => {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = c.name;
+        sel.appendChild(option);
+    });
+
+    if (CLIENTS.length > 0) {
+        sel.value = Math.min(prev, CLIENTS.length - 1);
+        currentIdx = parseInt(sel.value);
+    } else {
+        currentIdx = -1;
+    }
+}
 function loadClient() {
     const sel = document.getElementById('clientSelect');
 
@@ -374,6 +393,8 @@ function saveClient() {
 // Save updated client list
 localStorage.setItem("clients", JSON.stringify(CLIENTS));
 
+console.log(CLIENTS);
+ 
 closeModal();
 rebuildSelect();
   document.getElementById('clientSelect').value = currentIdx;

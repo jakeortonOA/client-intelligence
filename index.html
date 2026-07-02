@@ -386,37 +386,69 @@ function openEditModal() {
 
 function closeModal() { document.getElementById('clientModal').classList.add('hidden'); }
 
-function saveClient() {
-  const name = document.getElementById('f_name').value.trim();
-  if (!name) { alert('Client name is required.'); return; }
-  const client = {
-    name,
-    sector: document.getElementById('f_sector').value.trim(),
-    subSector: document.getElementById('f_subSector').value.trim(),
-    geography: document.getElementById('f_geography').value.trim(),
-    competitors: splitCSV(document.getElementById('f_competitors').value),
-    keyCustomers: splitCSV(document.getElementById('f_keyCustomers').value),
-    keySuppliers: splitCSV(document.getElementById('f_keySuppliers').value),
-    regulatoryBodies: splitCSV(document.getElementById('f_regulatoryBodies').value),
-    watchTriggers: splitCSV(document.getElementById('f_watchTriggers').value),
-    advisoryNotes: document.getElementById('f_advisoryNotes').value.trim()
-  };
- if (modalMode === 'add') {
-    CLIENTS.push(client);
-    currentIdx = CLIENTS.length - 1;
-} else {
-    CLIENTS[currentIdx] = client;
-}
+async function saveClient() {
 
-// Save updated client list
-localStorage.setItem("clients", JSON.stringify(CLIENTS));
+    const name = document.getElementById('f_name').value.trim();
 
-console.log(CLIENTS);
- 
-closeModal();
-rebuildSelect();
-  document.getElementById('clientSelect').value = currentIdx;
-  loadClient();
+    if (!name) {
+        alert('Client name is required.');
+        return;
+    }
+
+    const client = {
+        name,
+        sector: document.getElementById('f_sector').value.trim(),
+        subSector: document.getElementById('f_subSector').value.trim(),
+        geography: document.getElementById('f_geography').value.trim(),
+        competitors: splitCSV(document.getElementById('f_competitors').value),
+        keyCustomers: splitCSV(document.getElementById('f_keyCustomers').value),
+        keySuppliers: splitCSV(document.getElementById('f_keySuppliers').value),
+        regulatoryBodies: splitCSV(document.getElementById('f_regulatoryBodies').value),
+        watchTriggers: splitCSV(document.getElementById('f_watchTriggers').value),
+        advisoryNotes: document.getElementById('f_advisoryNotes').value.trim()
+    };
+
+    let error;
+
+    if (modalMode === 'add') {
+
+        ({ error } = await sb
+            .from("clients")
+            .insert(client));
+
+    } else {
+
+        ({ error } = await sb
+            .from("clients")
+            .update(client)
+            .eq("id", CLIENTS[currentIdx].id));
+
+    }
+
+    if (error) {
+        console.error(error);
+        alert("Failed to save client.");
+        return;
+    }
+
+    const result = await sb
+        .from("clients")
+        .select("*")
+        .order("name");
+
+    CLIENTS = result.data || [];
+
+    rebuildSelect();
+
+    currentIdx = CLIENTS.findIndex(c => c.name === name);
+
+    if (currentIdx < 0) currentIdx = 0;
+
+    document.getElementById("clientSelect").value = currentIdx;
+
+    closeModal();
+    loadClient();
+
 }
 
 function openConfirmDelete() {
@@ -424,23 +456,49 @@ function openConfirmDelete() {
   document.getElementById('confirmOverlay').classList.remove('hidden');
 }
 function closeConfirm() { document.getElementById('confirmOverlay').classList.add('hidden'); }
-function deleteClient() {
+async function deleteClient() {
+
     if (CLIENTS.length === 1) {
         alert("Can't remove the last client.");
         closeConfirm();
         return;
     }
 
-    CLIENTS.splice(currentIdx, 1);
-    currentIdx = Math.max(0, currentIdx - 1);
+    const id = CLIENTS[currentIdx].id;
 
-    // Save updated client list
-    localStorage.setItem("clients", JSON.stringify(CLIENTS));
+    const { error } = await sb
+        .from("clients")
+        .delete()
+        .eq("id", id);
+
+    if (error) {
+        console.error(error);
+        alert("Failed to delete client.");
+        return;
+    }
+
+    const result = await sb
+        .from("clients")
+        .select("*")
+        .order("name");
+
+    CLIENTS = result.data || [];
+
+    currentIdx = Math.max(0, currentIdx - 1);
 
     closeConfirm();
     rebuildSelect();
-    document.getElementById('clientSelect').value = currentIdx;
-    loadClient();
+
+    if (CLIENTS.length > 0) {
+        document.getElementById("clientSelect").value = currentIdx;
+        loadClient();
+    } else {
+        document.getElementById("mainPanel").innerHTML = `
+            <div class="empty-state">
+                <h2>No clients yet</h2>
+                <p>Click <strong>Add Client</strong> to create your first client.</p>
+            </div>`;
+    }
 }
 
 async function generateBrief() {

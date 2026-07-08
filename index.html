@@ -739,29 +739,65 @@ renderBrief(brief, c.name, null);
  
 function renderBrief(brief, clientName, generatedAt) {
   const ts = generatedAt
-    ? new Date(generatedAt).toLocaleString('en-GB', {dateStyle:'medium', timeStyle:'short'})
-    : new Date().toLocaleString('en-GB', {dateStyle:'medium', timeStyle:'short'});
- 
-  const items = (brief.items||[]).map(item => {
-    const p = (item.priority||'low').toLowerCase();
-    return `<div class="item-card ${p}">
-      <div class="item-meta"><span class="badge badge-${p}">${item.priority}</span><span class="item-relevance">${item.relevance}</span></div>
-      <div class="item-headline">${item.headline}</div>
-      <div class="item-detail">${item.detail}</div>
-      <div class="talking-point"><div class="talking-label">Talking Point</div><div class="talking-text">"${item.suggestedTalkingPoint}"</div></div>
-    </div>`;
+    ? new Date(generatedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    : new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+
+  const items = (brief.items || []).map(item => {
+    const p = (item.priority || 'low').toLowerCase();
+
+    return `
+      <div class="item-card ${p}">
+        <div class="item-meta">
+          <span class="badge badge-${p}">${item.priority}</span>
+          <span class="item-relevance">${item.relevance}</span>
+        </div>
+
+        <div class="item-headline">${item.headline}</div>
+
+        <div class="item-detail">${item.detail}</div>
+
+        <div class="talking-point">
+          <div class="talking-label">Talking Point</div>
+          <div class="talking-text">"${item.suggestedTalkingPoint}"</div>
+        </div>
+      </div>
+    `;
   }).join('');
- 
+
   document.getElementById('mainPanel').innerHTML = `
     <div class="brief-header">
-      <div><div class="brief-eyebrow">Intelligence Brief</div><div class="brief-title">${clientName}</div><div class="brief-timestamp">Generated ${ts}</div></div>
-     <div class="brief-actions">
-    <button class="export-btn" onclick="exportBriefingPDF()">📄 Export PDF</button>
-    <button class="generate-btn" onclick="generateBrief()">↻ Generate Updated Brief</button>
-</div>
-    <div class="summary-box"><div class="summary-label">Advisor Summary</div><div class="summary-text">${brief.summary}</div></div>
-    ${brief.callToAction ? '<div class="action-box"><div class="action-label">⚡ Action This Week</div><div class="action-text">' + brief.callToAction + '</div></div>' : ''}
-    <div class="items-list">${items}</div>
+
+      <div>
+        <div class="brief-eyebrow">Intelligence Brief</div>
+        <div class="brief-title">${clientName}</div>
+        <div class="brief-timestamp">Generated ${ts}</div>
+      </div>
+
+      <div class="brief-actions">
+        <button class="export-btn" onclick="exportBriefingPDF()">📄 Export PDF</button>
+        <button class="generate-btn" onclick="generateBrief()">↻ Generate Updated Brief</button>
+      </div>
+
+    </div>
+
+
+    <div class="summary-box">
+      <div class="summary-label">Advisor Summary</div>
+      <div class="summary-text">${brief.summary}</div>
+    </div>
+
+
+    ${brief.callToAction ? `
+      <div class="action-box">
+        <div class="action-label">⚡ Action This Week</div>
+        <div class="action-text">${brief.callToAction}</div>
+      </div>
+    ` : ''}
+
+
+    <div class="items-list">
+      ${items}
+    </div>
   `;
 }
 

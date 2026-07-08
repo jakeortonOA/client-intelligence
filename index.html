@@ -877,7 +877,15 @@ async function exportBriefingPDF() {
 
     const imgWidth = pdfWidth - (margin * 2);
     const imgHeight = canvas.height * imgWidth / canvas.width;
-
+ 
+    pdf.setFillColor(12, 21, 32);
+    pdf.rect(
+      0,
+      0,
+      pdf.internal.pageSize.getWidth(),
+      pdf.internal.pageSize.getHeight(),
+      "F"
+    );
     pdf.addImage(
         imgData,
         "PNG",

@@ -296,6 +296,9 @@ let CLIENTS = [];
 const SUPABASE_URL = "https://luxdrpiairvyivfiqkav.supabase.co";
 const SUPABASE_KEY = "sb_publishable_oneB0J64NSARD9OFBIXuxg_77elLG8D";
 
+console.log("SUPABASE_URL =", SUPABASE_URL);
+console.log("SUPABASE_KEY exists =", !!SUPABASE_KEY);
+
 const sb = window.supabase.createClient(
     SUPABASE_URL,
     SUPABASE_KEY

@@ -393,7 +393,7 @@ async function loadClient() {
   const latest = await loadLatestBriefing(c.id);
 
 if (latest) {
-    renderBrief(latest.briefing_json, c.name);
+    renderBrief(latest.briefing_json, c.name, history);
 }
 
 const history = await loadBriefingHistory(c.id);
@@ -709,7 +709,7 @@ renderBrief(brief, c.name);
   }
 }
 
-function renderBrief(brief, clientName) {
+function renderBrief(brief, clientName, history = []) {
   const now = new Date().toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'});
   const items = (brief.items||[]).map(item => {
     const p = (item.priority||'low').toLowerCase();
@@ -720,16 +720,38 @@ function renderBrief(brief, clientName) {
       <div class="talking-point"><div class="talking-label">Talking Point</div><div class="talking-text">"${item.suggestedTalkingPoint}"</div></div>
     </div>`;
   }).join('');
+ 
+const historyHtml = history.map(h => {
+    const d = new Date(h.created_at);
 
+    const formatted =
+        d.toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        }) +
+        ' • ' +
+        d.toLocaleTimeString('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+    return `<div class="history-item">${formatted}</div>`;
+}).join('');
   document.getElementById('mainPanel').innerHTML = `
     <div class="brief-header">
       <div><div class="brief-eyebrow">Intelligence Brief</div><div class="brief-title">${clientName}</div><div class="brief-timestamp">Generated ${now}</div></div>
       <button class="refresh-btn" onclick="generateBrief()">↻ Refresh</button>
     </div>
     <div class="summary-box"><div class="summary-label">Advisor Summary</div><div class="summary-text">${brief.summary}</div></div>
-    ${brief.callToAction?`<div class="action-box"><div style="font-size:16px;margin-top:1px">⚡</div><div><div class="action-label">Action This Week</div><div class="action-text">${brief.callToAction}</div></div></div>`:''}
-    <div class="items-list">${items}</div>`;
-}
+   ${brief.callToAction?`⚡Action This Week${brief.callToAction}`:''}
+
+<div class="items-list">${items}</div>
+
+<div class="history-panel">
+    <div class="history-title">📜 Briefing History</div>
+    ${historyHtml}
+</div>`;
 
 document.getElementById('clientModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
 document.getElementById('confirmOverlay').addEventListener('click',function(e){if(e.target===this)closeConfirm();});

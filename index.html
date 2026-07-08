@@ -389,14 +389,14 @@ async function loadClient() {
 
     renderProfile(c);
     resetMain();
-
-  const latest = await loadLatestBriefing(c.id);
-
+ 
+const history = await loadBriefingHistory(c.id);
+ 
+const latest = await loadLatestBriefing(c.id);
+ 
 if (latest) {
     renderBrief(latest.briefing_json, c.name, history);
 }
-
-const history = await loadBriefingHistory(c.id);
 
 console.log("Briefing History:", history);
 
@@ -744,7 +744,7 @@ const historyHtml = history.map(h => {
       <button class="refresh-btn" onclick="generateBrief()">↻ Refresh</button>
     </div>
     <div class="summary-box"><div class="summary-label">Advisor Summary</div><div class="summary-text">${brief.summary}</div></div>
-   ${brief.callToAction?`⚡Action This Week${brief.callToAction}`:''}
+   ${brief.callToAction ? `⚡Action This Week${brief.callToAction}` : ''}
 
 <div class="items-list">${items}</div>
 
@@ -752,7 +752,7 @@ const historyHtml = history.map(h => {
     <div class="history-title">📜 Briefing History</div>
     ${historyHtml}
 </div>`;
-
+}
 document.getElementById('clientModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
 document.getElementById('confirmOverlay').addEventListener('click',function(e){if(e.target===this)closeConfirm();});
 

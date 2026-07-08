@@ -56,8 +56,8 @@
  
   .generate-btn { background: #C9A84C; color: #0C1520; border: none; border-radius: 6px; padding: 12px 24px; font-size: 13px; font-weight: 700; cursor: pointer; }
   .generate-btn:hover { opacity: 0.85; }
-  .refresh-btn { background: #C9A84C; color: #0C1520; border: none; border-radius: 6px; padding: 8px 16px; font-size: 11px; font-weight: 700; cursor: pointer; }
-  .refresh-btn:hover { opacity: 0.85; }
+  .generate-btn { background: #C9A84C; color: #0C1520; border: none; border-radius: 6px; padding: 8px 16px; font-size: 11px; font-weight: 700; cursor: pointer; }
+  .generate-btn:hover { opacity: 0.85; }
  
   .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 70vh; gap: 20px; text-align: center; }
   .empty-title { font-size: 16px; font-weight: 600; color: #C8D8E8; margin-bottom: 8px; }
@@ -147,6 +147,24 @@
   .history-entry-date { font-size: 12px; color: #6B8FAF; line-height: 1.3; }
   .history-entry-date span { display: block; font-size: 11px; color: #3A5570; }
   .history-empty { font-size: 12px; color: #3A5570; font-style: italic; }
+  
+  .brief-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.export-btn {
+    background: #111827;
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.export-btn:hover {
+    opacity: 0.85;
+}
 </style>
 </head>
 <body>
@@ -268,13 +286,16 @@
 </div>
  
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
- 
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <script>
 let CLIENTS = [];
- 
-const SUPABASE_URL = "https://luxdrpiairvyivfiqkav.supabase.co";
-const SUPABASE_KEY = "sb_publishable_oneB0J64NSARD9OFBIXuxg_77elLG8D";
- 
+
+const SUPABASE_URL = "...";
+const SUPABASE_KEY = "...";
+
 const sb = window.supabase.createClient(
     SUPABASE_URL,
     SUPABASE_KEY
@@ -749,12 +770,82 @@ function renderBrief(brief, clientName, generatedAt) {
   document.getElementById('mainPanel').innerHTML = `
     <div class="brief-header">
       <div><div class="brief-eyebrow">Intelligence Brief</div><div class="brief-title">${clientName}</div><div class="brief-timestamp">Generated ${ts}</div></div>
-      <button class="refresh-btn" onclick="generateBrief()">↻ Refresh</button>
-    </div>
+     <div class="brief-actions">
+    <button class="export-btn" onclick="exportBriefingPDF()">📄 Export PDF</button>
+    <button class="generate-btn" onclick="generateBrief()">↻ Generate Updated Brief</button>
+</div>
     <div class="summary-box"><div class="summary-label">Advisor Summary</div><div class="summary-text">${brief.summary}</div></div>
     ${brief.callToAction ? '<div class="action-box"><div class="action-label">⚡ Action This Week</div><div class="action-text">' + brief.callToAction + '</div></div>' : ''}
     <div class="items-list">${items}</div>
   `;
+}
+
+ async function exportBriefingPDF() {
+
+    const element = document.getElementById("mainPanel");
+
+    if (!element) {
+        alert("No briefing available.");
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+
+    const canvas = await html2canvas(element, {
+        scale: 2,
+        backgroundColor: "#ffffff"
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+
+    const margin = 10;
+
+    const imgWidth = pdfWidth - (margin * 2);
+    const imgHeight = canvas.height * imgWidth / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = margin;
+
+
+    pdf.addImage(
+        imgData,
+        "PNG",
+        margin,
+        position,
+        imgWidth,
+        imgHeight
+    );
+
+    heightLeft -= pdfHeight;
+
+
+    while (heightLeft > 0) {
+
+        position = heightLeft - imgHeight;
+
+        pdf.addPage();
+
+        pdf.addImage(
+            imgData,
+            "PNG",
+            margin,
+            position,
+            imgWidth,
+            imgHeight
+        );
+
+        heightLeft -= pdfHeight;
+    }
+
+
+    const filename = `client-intelligence-brief-${Date.now()}.pdf`;
+
+    pdf.save(filename);
 }
  
 function renderHistory(history, activeId) {

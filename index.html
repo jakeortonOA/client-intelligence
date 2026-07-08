@@ -806,10 +806,10 @@ function renderBrief(brief, clientName, generatedAt) {
     <div class="brief-timestamp">Generated ${ts}</div>
   </div>
 
-  <div class="brief-actions">
+  <div class="brief-actions no-export">
     <button class="export-btn" onclick="exportBriefingPDF()">📄 Export PDF</button>
     <button class="generate-btn" onclick="generateBrief()">↻ Generate Updated Brief</button>
-  </div>
+</div>
 
 </div>   <!-- THIS WAS MISSING -->
 
@@ -846,9 +846,10 @@ function renderBrief(brief, clientName, generatedAt) {
     const { jsPDF } = window.jspdf;
 
     const canvas = await html2canvas(element, {
-        scale: 2,
-        backgroundColor: "#0C1520"
-    });
+    scale: 2,
+    backgroundColor: "#0C1520",
+    ignoreElements: (el) => el.classList.contains("no-export")
+});
 
     const imgData = canvas.toDataURL("image/png");
 

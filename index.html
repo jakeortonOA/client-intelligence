@@ -752,7 +752,7 @@ const historyHtml = history.map(h => {
       <button class="refresh-btn" onclick="generateBrief()">↻ Refresh</button>
     </div>
     <div class="summary-box"><div class="summary-label">Advisor Summary</div><div class="summary-text">${brief.summary}</div></div>
-   ${brief.callToAction ? `⚡Action This Week${brief.callToAction}` : ''}
+   ${brief.callToAction ? '<div class="action-box"><div class="action-label">⚡ Action This Week</div><div class="action-text">' + brief.callToAction + '</div></div>' : ''}
 
 <div class="items-list">${items}</div>
 

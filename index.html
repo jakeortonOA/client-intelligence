@@ -309,6 +309,23 @@ async function loadLatestBriefing(clientId) {
 
 }
  
+async function loadBriefingHistory(clientId) {
+
+    const { data, error } = await sb
+        .from("briefings")
+        .select("id, created_at")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false });
+
+    if (error) {
+        console.error(error);
+        return [];
+    }
+
+    return data;
+
+}
+ 
 async function init() {
 
     const { data, error } = await sb
@@ -373,13 +390,15 @@ async function loadClient() {
     renderProfile(c);
     resetMain();
 
-    const latest = await loadLatestBriefing(c.id);
+  const latest = await loadLatestBriefing(c.id);
 
-    if (latest) {
-        renderBrief(latest.briefing_json, c.name);
-    }
-
+if (latest) {
+    renderBrief(latest.briefing_json, c.name);
 }
+
+const history = await loadBriefingHistory(c.id);
+
+console.log("Briefing History:", history);
 
 function resetMain() {
   const c = CLIENTS[currentIdx];

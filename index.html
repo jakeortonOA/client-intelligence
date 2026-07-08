@@ -752,11 +752,16 @@ const historyHtml = history.map(h => {
     <div class="history-title">📜 Briefing History</div>
     ${historyHtml}
 </div>`;
+ 
 }
-document.getElementById('clientModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
-document.getElementById('confirmOverlay').addEventListener('click',function(e){if(e.target===this)closeConfirm();});
-
+ 
+document.getElementById('clientModal').addEventListener('click',function(e){if(e.target===this)closeModal();
+});
+document.getElementById('confirmOverlay').addEventListener('click',function(e){if(e.target===this)closeConfirm();
+});
+ 
 init();
+ 
 </script>
 </body>
 </html>

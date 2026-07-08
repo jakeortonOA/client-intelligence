@@ -856,7 +856,10 @@ function renderBrief(brief, clientName, generatedAt) {
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-
+  
+    pdf.setFillColor(12, 21, 32);
+    pdf.rect(0, 0, pdfWidth, pdfHeight, "F");
+  
     const margin = 10;
 
     const imgWidth = pdfWidth - (margin * 2);

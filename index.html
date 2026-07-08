@@ -767,21 +767,21 @@ function renderBrief(brief, clientName, generatedAt) {
   document.getElementById('mainPanel').innerHTML = `
     <div class="brief-header">
 
-      <div>
-        <div class="brief-eyebrow">Intelligence Brief</div>
-        <div class="brief-title">${clientName}</div>
-        <div class="brief-timestamp">Generated ${ts}</div>
-      </div>
+  <div>
+    <div class="brief-eyebrow">Intelligence Brief</div>
+    <div class="brief-title">${clientName}</div>
+    <div class="brief-timestamp">Generated ${ts}</div>
+  </div>
 
-     <div>
-    <button class="refresh-btn" onclick="exportBriefingPDF()">📄 Export PDF</button>
-    <button class="refresh-btn" onclick="generateBrief()">↻ Generate Updated Brief</button>
-    </div>
+  <div class="brief-actions">
+    <button class="export-btn" onclick="exportBriefingPDF()">📄 Export PDF</button>
+    <button class="generate-btn" onclick="generateBrief()">↻ Generate Updated Brief</button>
+  </div>
 
-    </div>
+</div>   <!-- THIS WAS MISSING -->
 
 
-    <div class="summary-box">
+<div class="summary-box">
       <div class="summary-label">Advisor Summary</div>
       <div class="summary-text">${brief.summary}</div>
     </div>

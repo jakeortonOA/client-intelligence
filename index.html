@@ -147,13 +147,13 @@
   .history-entry-date { font-size: 12px; color: #6B8FAF; line-height: 1.3; }
   .history-entry-date span { display: block; font-size: 11px; color: #3A5570; }
   .history-empty { font-size: 12px; color: #3A5570; font-style: italic; }
-
+ 
   .brief-actions {
     display: flex;
     gap: 8px;
     align-items: center;
 }
-
+ 
 .brief-actions button {
     font-family: inherit;
     font-size: 12px;
@@ -164,17 +164,17 @@
     border: none;
     height: 42px;
 }
-
+ 
 .export-btn {
     background: #d4af37;
     color: #111827;
 }
-
+ 
 .generate-btn {
     background: #d4af37;
     color: #111827;
 }
-
+ 
 .brief-actions button:hover {
     opacity: 0.85;
 }
@@ -303,21 +303,20 @@
 </div>
  
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
+ 
+ 
+ 
 <script>
 let CLIENTS = [];
-
+ 
 const SUPABASE_URL = "https://luxdrpiairvyivfiqkav.supabase.co";
 const SUPABASE_KEY = "sb_publishable_oneB0J64NSARD9OFBIXuxg_77elLG8D";
-
-
-
+ 
+ 
+ 
 console.log("SUPABASE_URL =", SUPABASE_URL);
 console.log("SUPABASE_KEY exists =", !!SUPABASE_KEY);
-
+ 
 const sb = window.supabase.createClient(
     SUPABASE_URL,
     SUPABASE_KEY
@@ -778,21 +777,21 @@ function renderBrief(brief, clientName, generatedAt) {
   const ts = generatedAt
     ? new Date(generatedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
     : new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
-
+ 
   const items = (brief.items || []).map(item => {
     const p = (item.priority || 'low').toLowerCase();
-
+ 
     return `
       <div class="item-card ${p}">
         <div class="item-meta">
           <span class="badge badge-${p}">${item.priority}</span>
           <span class="item-relevance">${item.relevance}</span>
         </div>
-
+ 
         <div class="item-headline">${item.headline}</div>
-
+ 
         <div class="item-detail">${item.detail}</div>
-
+ 
         <div class="talking-point">
           <div class="talking-label">Talking Point</div>
           <div class="talking-text">"${item.suggestedTalkingPoint}"</div>
@@ -800,103 +799,143 @@ function renderBrief(brief, clientName, generatedAt) {
       </div>
     `;
   }).join('');
-
+ 
   document.getElementById('mainPanel').innerHTML = `
     <div class="brief-header">
-
+ 
   <div>
     <div class="brief-eyebrow">Intelligence Brief</div>
     <div class="brief-title">${clientName}</div>
     <div class="brief-timestamp">Generated ${ts}</div>
   </div>
-
+ 
 <div class="brief-actions no-export">
     <button class="export-btn" onclick="exportBriefingPDF()">📄 Export PDF</button>
     <button class="generate-btn" onclick="generateBrief()">↻ Generate Updated Brief</button>
 </div>
-
+ 
 </div>   <!-- THIS WAS MISSING -->
-
-
+ 
+ 
 <div class="summary-box">
       <div class="summary-label">Advisor Summary</div>
       <div class="summary-text">${brief.summary}</div>
     </div>
-
-
+ 
+ 
     ${brief.callToAction ? `
       <div class="action-box">
         <div class="action-label">⚡ Action This Week</div>
         <div class="action-text">${brief.callToAction}</div>
       </div>
     ` : ''}
-
-
+ 
+ 
     <div class="items-list">
       ${items}
     </div>
   `;
 }
-
-async function exportBriefingPDF() {
-
-    const element = document.getElementById("mainPanel");
-
-    if (!element) {
-        alert("No briefing available.");
-        return;
-    }
-
-    const buttons = document.querySelector(".brief-actions");
-
-    // Hide buttons before capture
-    if (buttons) {
-        buttons.style.display = "none";
-    }
-
-    const { jsPDF } = window.jspdf;
-    element.style.width = "794px";
-    element.style.minHeight = "1123px";
-    const canvas = await html2canvas(element, {
-    scale: 2,
-    backgroundColor: "#0C1520",
-    useCORS: true,
-    logging: false
-    });
-
-    // Restore buttons after capture
-    if (buttons) {
-        buttons.style.display = "";
-    }
-
-    const imgData = canvas.toDataURL("image/png");
-
-    const pdf = new jsPDF("p", "mm", "a4");
-
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const margin = 10;
-
-    const imgWidth = pdfWidth;
-    const imgHeight = (canvas.height * pdfWidth) / canvas.width;
  
-    pdf.setFillColor(12, 21, 32);
-    pdf.rect(
-      0,
-      0,
-      pdf.internal.pageSize.getWidth(),
-      pdf.internal.pageSize.getHeight(),
-      "F"
-    );
-    pdf.addImage(
-    imgData,
-    "PNG",
-    0,
-    0,
-    imgWidth,
-    imgHeight
-);
-
-    pdf.save(`client-intelligence-brief-${Date.now()}.pdf`);
+function exportBriefingPDF() {
+  const panel = document.getElementById('mainPanel');
+  if (!panel || !panel.querySelector('.brief-title')) {
+    alert('No briefing loaded. Please generate or select a brief first.');
+    return;
+  }
+ 
+  // Extract data from rendered DOM
+  const clientName = panel.querySelector('.brief-title')?.innerText || '';
+  const timestamp  = panel.querySelector('.brief-timestamp')?.innerText || '';
+  const summary    = panel.querySelector('.summary-text')?.innerText || '';
+  const actionText = panel.querySelector('.action-text')?.innerText || '';
+  const actionBox  = panel.querySelector('.action-box');
+ 
+  const cards = [...panel.querySelectorAll('.item-card')].map(card => {
+    const priority   = card.classList.contains('high') ? 'HIGH' : card.classList.contains('medium') ? 'MEDIUM' : 'LOW';
+    const colour     = card.classList.contains('high') ? '#C0392B' : card.classList.contains('medium') ? '#7A8C2A' : '#4A7A9B';
+    const relevance  = card.querySelector('.item-relevance')?.innerText || '';
+    const headline   = card.querySelector('.item-headline')?.innerText || '';
+    const detail     = card.querySelector('.item-detail')?.innerText || '';
+    const talking    = card.querySelector('.talking-text')?.innerText || '';
+    return { priority, colour, relevance, headline, detail, talking };
+  });
+ 
+  // Get the logo src from the header
+  const logoEl = document.querySelector('.header-brand img');
+  const logoSrc = logoEl ? logoEl.src : '';
+ 
+  const cardsHtml = cards.map(c => `
+    <div style="border:1.5px solid ${c.colour};border-radius:6px;padding:14px 16px;margin-bottom:12px;page-break-inside:avoid;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span style="background:${c.colour};color:#fff;font-size:10px;font-weight:700;letter-spacing:0.1em;padding:2px 8px;border-radius:4px;text-transform:uppercase;">${c.priority}</span>
+        <span style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.08em;">${c.relevance}</span>
+      </div>
+      <div style="font-size:14px;font-weight:600;color:#111;margin-bottom:6px;line-height:1.4;">${c.headline}</div>
+      <div style="font-size:13px;color:#333;line-height:1.6;margin-bottom:10px;">${c.detail}</div>
+      <div style="border-top:1px solid #ddd;padding-top:8px;">
+        <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:#666;margin-bottom:3px;">Talking Point</div>
+        <div style="font-size:12px;color:#444;font-style:italic;line-height:1.5;">${c.talking}</div>
+      </div>
+    </div>`).join('');
+ 
+  const actionHtml = actionBox ? `
+    <div style="background:#f0f7e6;border:1px solid #7a9c3a;border-radius:6px;padding:12px 16px;margin-bottom:18px;page-break-inside:avoid;">
+      <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#4a7a1a;margin-bottom:4px;font-weight:700;">⚡ Action This Week</div>
+      <div style="font-size:13px;color:#222;">${actionText}</div>
+    </div>` : '';
+ 
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Intelligence Brief — ${clientName}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #fff; color: #111; padding: 36px 44px; }
+  @media print {
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { padding: 24px 32px; }
+  }
+</style>
+</head>
+<body>
+  <!-- Header -->
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2px solid #C9A84C;padding-bottom:16px;margin-bottom:20px;">
+    <div>
+      <div style="font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:#4A7A9B;margin-bottom:4px;font-weight:600;">Intelligence Brief</div>
+      <div style="font-size:24px;font-weight:700;color:#0C1520;margin-bottom:3px;">${clientName}</div>
+      <div style="font-size:11px;color:#666;">${timestamp}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      ${logoSrc ? `<img src="${logoSrc}" width="36" height="36" style="object-fit:contain;"/>` : ''}
+      <span style="font-size:12px;font-weight:700;color:#C9A84C;letter-spacing:0.05em;">Oldfield Advisory</span>
+    </div>
+  </div>
+ 
+  <!-- Summary -->
+  <div style="background:#f8f5ec;border:1px solid #e0c97a;border-left:3px solid #C9A84C;border-radius:6px;padding:14px 18px;margin-bottom:16px;page-break-inside:avoid;">
+    <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#8a6e1e;margin-bottom:6px;font-weight:700;">Advisor Summary</div>
+    <div style="font-size:13px;color:#222;line-height:1.7;">${summary}</div>
+  </div>
+ 
+  ${actionHtml}
+ 
+  <!-- Intelligence Items -->
+  ${cardsHtml}
+ 
+  <!-- Footer -->
+  <div style="margin-top:32px;padding-top:12px;border-top:1px solid #ddd;font-size:11px;color:#999;text-align:center;">
+    Oldfield Advisory — Client Intelligence Platform — Confidential
+  </div>
+ 
+  <script>window.onload = function(){ window.print(); window.onafterprint = function(){ window.close(); }; }<\/script>
+</body>
+</html>`;
+ 
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(html);
+  win.document.close();
 }
  
 function renderHistory(history, activeId) {

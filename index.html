@@ -844,91 +844,45 @@ function exportBriefingPDF() {
     return;
   }
  
-  // Extract data from rendered DOM
-  const clientName = panel.querySelector('.brief-title')?.innerText || '';
-  const timestamp  = panel.querySelector('.brief-timestamp')?.innerText || '';
-  const summary    = panel.querySelector('.summary-text')?.innerText || '';
-  const actionText = panel.querySelector('.action-text')?.innerText || '';
-  const actionBox  = panel.querySelector('.action-box');
+  // Grab the real CSS from the page
+  const styles = Array.from(document.styleSheets)
+    .map(sheet => {
+      try {
+        return Array.from(sheet.cssRules).map(r => r.cssText).join('\n');
+      } catch(e) { return ''; }
+    }).join('\n');
  
-  const cards = [...panel.querySelectorAll('.item-card')].map(card => {
-    const priority   = card.classList.contains('high') ? 'HIGH' : card.classList.contains('medium') ? 'MEDIUM' : 'LOW';
-    const colour     = card.classList.contains('high') ? '#C0392B' : card.classList.contains('medium') ? '#7A8C2A' : '#4A7A9B';
-    const relevance  = card.querySelector('.item-relevance')?.innerText || '';
-    const headline   = card.querySelector('.item-headline')?.innerText || '';
-    const detail     = card.querySelector('.item-detail')?.innerText || '';
-    const talking    = card.querySelector('.talking-text')?.innerText || '';
-    return { priority, colour, relevance, headline, detail, talking };
-  });
+  // Clone the panel, strip buttons
+  const clone = panel.cloneNode(true);
+  clone.querySelectorAll('.brief-actions, .no-export').forEach(el => el.remove());
  
-  // Get the logo src from the header
+  // Get logo
   const logoEl = document.querySelector('.header-brand img');
   const logoSrc = logoEl ? logoEl.src : '';
- 
-  const cardsHtml = cards.map(c => `
-    <div style="border:1.5px solid ${c.colour};border-radius:6px;padding:14px 16px;margin-bottom:12px;page-break-inside:avoid;">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-        <span style="background:${c.colour};color:#fff;font-size:10px;font-weight:700;letter-spacing:0.1em;padding:2px 8px;border-radius:4px;text-transform:uppercase;">${c.priority}</span>
-        <span style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.08em;">${c.relevance}</span>
-      </div>
-      <div style="font-size:14px;font-weight:600;color:#111;margin-bottom:6px;line-height:1.4;">${c.headline}</div>
-      <div style="font-size:13px;color:#333;line-height:1.6;margin-bottom:10px;">${c.detail}</div>
-      <div style="border-top:1px solid #ddd;padding-top:8px;">
-        <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:#666;margin-bottom:3px;">Talking Point</div>
-        <div style="font-size:12px;color:#444;font-style:italic;line-height:1.5;">${c.talking}</div>
-      </div>
-    </div>`).join('');
- 
-  const actionHtml = actionBox ? `
-    <div style="background:#f0f7e6;border:1px solid #7a9c3a;border-radius:6px;padding:12px 16px;margin-bottom:18px;page-break-inside:avoid;">
-      <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#4a7a1a;margin-bottom:4px;font-weight:700;">⚡ Action This Week</div>
-      <div style="font-size:13px;color:#222;">${actionText}</div>
-    </div>` : '';
  
   const html = `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Intelligence Brief — ${clientName}</title>
+<title>Intelligence Brief</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Inter', system-ui, sans-serif; background: #fff; color: #111; padding: 36px 44px; }
-  @media print {
-    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    body { padding: 24px 32px; }
-  }
+  @page { margin: 14mm 16mm; size: A4; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { background: #0C1520 !important; color: #E8EFF6; font-family: 'Inter', system-ui, sans-serif; }
+  body { padding: 32px 36px; }
+  ${styles}
+  .brief-actions { display: none !important; }
 </style>
 </head>
 <body>
-  <!-- Header -->
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2px solid #C9A84C;padding-bottom:16px;margin-bottom:20px;">
-    <div>
-      <div style="font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:#4A7A9B;margin-bottom:4px;font-weight:600;">Intelligence Brief</div>
-      <div style="font-size:24px;font-weight:700;color:#0C1520;margin-bottom:3px;">${clientName}</div>
-      <div style="font-size:11px;color:#666;">${timestamp}</div>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px;">
-      ${logoSrc ? `<img src="${logoSrc}" width="36" height="36" style="object-fit:contain;"/>` : ''}
-      <span style="font-size:12px;font-weight:700;color:#C9A84C;letter-spacing:0.05em;">Oldfield Advisory</span>
-    </div>
+  <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid #1E3448;">
+    ${logoSrc ? `<img src="${logoSrc}" width="28" height="28" style="object-fit:contain;"/>` : ''}
+    <span style="font-size:11px;font-weight:700;color:#C9A84C;letter-spacing:0.1em;text-transform:uppercase;">Oldfield Advisory</span>
   </div>
- 
-  <!-- Summary -->
-  <div style="background:#f8f5ec;border:1px solid #e0c97a;border-left:3px solid #C9A84C;border-radius:6px;padding:14px 18px;margin-bottom:16px;page-break-inside:avoid;">
-    <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#8a6e1e;margin-bottom:6px;font-weight:700;">Advisor Summary</div>
-    <div style="font-size:13px;color:#222;line-height:1.7;">${summary}</div>
-  </div>
- 
-  ${actionHtml}
- 
-  <!-- Intelligence Items -->
-  ${cardsHtml}
- 
-  <!-- Footer -->
-  <div style="margin-top:32px;padding-top:12px;border-top:1px solid #ddd;font-size:11px;color:#999;text-align:center;">
+  ${clone.innerHTML}
+  <div style="margin-top:32px;padding-top:12px;border-top:1px solid #1A2E42;font-size:11px;color:#3A5570;text-align:center;">
     Oldfield Advisory — Client Intelligence Platform — Confidential
   </div>
- 
   <script>window.onload = function(){ window.print(); window.onafterprint = function(){ window.close(); }; }<\/script>
 </body>
 </html>`;
@@ -938,30 +892,6 @@ function exportBriefingPDF() {
   win.document.close();
 }
  
-function renderHistory(history, activeId) {
-  const el = document.getElementById('briefingHistory');
-  if (!history || history.length === 0) {
-    el.innerHTML = '';
-    return;
-  }
-  const entries = history.map((h, i) => {
-    const d = new Date(h.created_at);
-    const date = d.toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'});
-    const time = d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
-    const isActive = h.id === activeId ? 'active' : '';
-    const label = i === 0 ? '<span>Latest</span>' : '';
-    return `<div class="history-entry ${isActive}" onclick="loadBriefingById(${h.id})">
-      <div class="history-dot"></div>
-      <div class="history-entry-date">${date} · ${time}${label}</div>
-    </div>`;
-  }).join('');
- 
-  el.innerHTML = `
-    <div class="history-section">
-      <div class="history-section-label">Briefing History</div>
-      ${entries}
-    </div>`;
-}
  
 async function loadBriefingById(id) {
   const c = CLIENTS[currentIdx];
@@ -975,7 +905,7 @@ async function loadBriefingById(id) {
  
   // Update active state in sidebar
   document.querySelectorAll('.history-entry').forEach(el => {
-    el.classList.toggle('active', el.onclick.toString().includes(id));
+    el.classList.toggle('active', String(el.dataset.briefingId) === String(id));
   });
  
   renderBrief(data.briefing_json, c.name, data.created_at);

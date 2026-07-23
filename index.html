@@ -178,6 +178,29 @@
 .brief-actions button:hover {
     opacity: 0.85;
 }
+  /* Tabs */
+  .tab-container { background: #131F2E; border: 1px solid #1E3448; border-left: 3px solid #C9A84C; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
+  .tab-bar { display: flex; gap: 0; margin-bottom: 0; border-bottom: 1px solid #1E3448; padding: 0 8px; background: rgba(0,0,0,0.15); }
+  .tab-btn { background: transparent; border: none; border-bottom: 2px solid transparent; color: #4A7A9B; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 12px 20px; cursor: pointer; margin-bottom: -1px; transition: all 0.15s; font-family: inherit; }
+  .tab-btn:hover { color: #C8D8E8; }
+  .tab-btn.active { color: #C9A84C; border-bottom-color: #C9A84C; }
+  .tab-panel { display: none; padding: 16px 20px; }
+  .tab-panel.active { display: block; }
+  .tab-panel .summary-box { background: transparent; border: none; border-left: none; border-radius: 0; padding: 0; margin-bottom: 0; }
+  .tab-panel .action-box { margin-bottom: 0; margin-top: 16px; }
+
+  /* Client Update panel */
+  .update-empty { text-align: center; padding: 48px 24px; }
+  .update-empty-title { font-size: 14px; font-weight: 600; color: #C8D8E8; margin-bottom: 8px; }
+  .update-empty-sub { font-size: 13px; color: #4A6A8A; margin-bottom: 24px; line-height: 1.6; }
+  .update-generate-btn { background: #C9A84C; color: #0C1520; border: none; border-radius: 6px; padding: 10px 22px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .update-generate-btn:hover { opacity: 0.85; }
+  .update-box { background: #131F2E; border: 1px solid #1E3448; border-radius: 8px; padding: 24px 28px; line-height: 1.9; font-size: 13px; color: #C8D8E8; white-space: pre-wrap; }
+  .update-actions { display: flex; gap: 8px; margin-bottom: 20px; }
+  .copy-btn { background: transparent; border: 1px solid #1E3448; color: #4A7A9B; border-radius: 6px; padding: 8px 14px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .copy-btn:hover { border-color: #4A7A9B; color: #C8D8E8; background: #1A2E42; }
+  .copy-btn.copied { border-color: #8AB830; color: #8AB830; }
+
  #mainPanel {
     background: #0C1520 !important;
     color: #ffffff;
@@ -810,41 +833,139 @@ function renderBrief(brief, clientName, generatedAt) {
  
   document.getElementById('mainPanel').innerHTML = `
     <div class="brief-header">
- 
-  <div>
-    <div class="brief-eyebrow">Intelligence Brief</div>
-    <div class="brief-title">${clientName}</div>
-    <div class="brief-timestamp">Generated ${ts}</div>
-  </div>
- 
-<div class="brief-actions no-export">
-    <button class="export-btn" onclick="exportBriefingPDF()">📄 Export PDF</button>
-    <button class="generate-btn" onclick="generateBrief()">↻ Generate Updated Brief</button>
-</div>
- 
-</div>   <!-- THIS WAS MISSING -->
- 
- 
-<div class="summary-box">
-      <div class="summary-label">Advisor Summary</div>
-      <div class="summary-text">${brief.summary}</div>
-    </div>
- 
- 
-    ${brief.callToAction ? `
-      <div class="action-box">
-        <div class="action-label">⚡ Action This Week</div>
-        <div class="action-text">${brief.callToAction}</div>
+      <div>
+        <div class="brief-eyebrow">Intelligence Brief</div>
+        <div class="brief-title">${clientName}</div>
+        <div class="brief-timestamp">Generated ${ts}</div>
       </div>
-    ` : ''}
- 
- 
-    <div class="items-list">
-      ${items}
+      <div class="brief-actions no-export">
+        <button class="export-btn" onclick="exportBriefingPDF()">📄 Export PDF</button>
+        <button class="generate-btn" onclick="generateBrief()">↻ Generate Updated Brief</button>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('brief', this)">Intelligence Brief</button>
+      <button class="tab-btn" onclick="switchTab('update', this)">Client Update</button>
+    </div>
+
+    <div class="tab-panel active" id="tab-brief">
+      <div class="summary-box">
+        <div class="summary-label">Advisor Summary</div>
+        <div class="summary-text">${brief.summary}</div>
+      </div>
+      ${brief.callToAction ? '<div class="action-box"><div class="action-label">⚡ Action This Week</div><div class="action-text">' + brief.callToAction + '</div></div>' : ''}
+      <div class="items-list">${items}</div>
+    </div>
+
+    <div class="tab-panel" id="tab-update">
+      <div class="update-empty">
+        <div class="update-empty-title">No client update generated yet</div>
+        <div class="update-empty-sub">Generate a plain-English client-facing email based on this intelligence brief.</div>
+        <button class="update-generate-btn" onclick="generateClientUpdate()">Generate Client Update</button>
+      </div>
     </div>
   `;
 }
  
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+async function generateClientUpdate() {
+  const c = CLIENTS[currentIdx];
+  if (!c) return;
+
+  // Get the current briefing JSON from the rendered brief
+  const panel = document.getElementById('tab-update');
+  panel.innerHTML = '<div class="update-empty"><div class="loading-state" style="height:auto;padding:48px 0"><div class="spinner"></div><div class="loading-text">Generating client update...</div></div></div>';
+
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey) { panel.innerHTML = '<div class="error-box">Please enter your API key.</div>'; return; }
+
+  // Get brief JSON from Supabase (latest for this client)
+  const { data, error } = await sb
+    .from('briefings')
+    .select('*')
+    .eq('client_id', c.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    panel.innerHTML = '<div class="error-box">Could not load brief data. Please generate a brief first.</div>';
+    return;
+  }
+
+  const brief = data.briefing_json;
+
+  const prompt = `You are a client relationship advisor at Oldfield Advisory, a UK business advisory firm.
+
+Using the intelligence brief below, write a short client-facing email to be sent ahead of a quarterly meeting.
+
+Client: ${c.name}
+
+Intelligence Brief:
+${JSON.stringify(brief, null, 2)}
+
+Rules:
+- Tone must be calm, collaborative and reassuring — never alarmist
+- Write as a trusted advisor who has been quietly watching the market on the client's behalf
+- Do not use jargon or technical language
+- Reference specific findings from the brief but do not reproduce it verbatim
+- Each paragraph should cover one theme only
+- Close by signalling the advisor will come prepared with questions
+- Never use bullet points — flowing prose only
+- Maximum 300 words
+- Do not mention Oldfield Advisory more than once
+- Do not include a sign off or signature
+- Return plain text only, no markdown, no formatting`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+    });
+
+    const result = await response.json();
+    if (result.error) throw new Error(result.error.message);
+
+    const emailText = result.content[0].text.trim();
+
+    // Save to Supabase
+    await sb.from('client_emails').insert({ client_id: c.id, briefing_id: data.id, email_text: emailText });
+
+    renderClientUpdate(emailText);
+
+  } catch (err) {
+    panel.innerHTML = '<div class="error-box">Error: ' + err.message + '</div>';
+  }
+}
+
+function renderClientUpdate(emailText) {
+  const panel = document.getElementById('tab-update');
+  panel.innerHTML = '<div class="update-actions"><button class="copy-btn" onclick="copyUpdate(this)">Copy to clipboard</button><button class="update-generate-btn" style="font-size:11px;padding:8px 14px;" onclick="generateClientUpdate()">↻ Regenerate</button></div><div class="update-box">' + emailText + '</div>';
+}
+
+function renderNoClientUpdate() {
+  const panel = document.getElementById('tab-update');
+  if (!panel) return;
+  panel.innerHTML = '<div class="update-empty"><div class="update-empty-title">No Client Update generated for this brief</div><div class="update-empty-sub">This brief was generated before the Client Update feature was added. Generate one now to create a client-facing summary.</div><button class="update-generate-btn" onclick="generateClientUpdate()">Generate Client Update</button></div>';
+}
+
+function copyUpdate(btn) {
+  const text = document.querySelector('.update-box').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓ Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy to clipboard'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
 function exportBriefingPDF() {
   const panel = document.getElementById('mainPanel');
   if (!panel || !panel.querySelector('.brief-title')) {
@@ -983,28 +1104,31 @@ async function loadBriefingById(id) {
   });
 
   renderBrief(data.briefing_json, c.name, data.created_at);
+
+  // Load existing client email for this briefing if one exists
+  const updatePanel = document.getElementById('tab-update');
+  if (updatePanel) {
+    try {
+      const { data: emailData, error: emailError } = await sb
+        .from('client_emails')
+        .select('*')
+        .eq('briefing_id', id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (emailData && !emailError) {
+        renderClientUpdate(emailData.email_text);
+      } else {
+        renderNoClientUpdate();
+      }
+    } catch(e) {
+      renderNoClientUpdate();
+    }
+  }
 }
  
-document.getElementById('clientModal').addEventListener('click',function(e){if(e.target===this)closeModal();
-});
-document.getElementById('confirmOverlay').addEventListener('click',function(e){if(e.target===this)closeConfirm();
-});
-
-document.getElementById('briefingHistory').addEventListener('click', function(e) {
-  const entry = e.target.closest('.history-entry');
-  if (!entry) return;
-  const id = entry.dataset.briefingId;
-  if (id) loadBriefingById(id);
-});
-
-document.getElementById('briefingHistory').addEventListener('keydown', function(e) {
-  if (e.key !== 'Enter' && e.key !== ' ') return;
-  const entry = e.target.closest('.history-entry');
-  if (!entry) return;
-  e.preventDefault();
-  const id = entry.dataset.briefingId;
-  if (id) loadBriefingById(id);
-});
+document.getElementById('clientModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+document.getElementById('confirmOverlay').addEventListener('click',function(e){if(e.target===this)closeConfirm();});
 
 init();
  

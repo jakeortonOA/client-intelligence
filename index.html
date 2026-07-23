@@ -1130,6 +1130,19 @@ async function loadBriefingById(id) {
 document.getElementById('clientModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
 document.getElementById('confirmOverlay').addEventListener('click',function(e){if(e.target===this)closeConfirm();});
 
+
+document.getElementById('briefingHistory').addEventListener('click', (e) => {
+    const entry = e.target.closest('.history-entry');
+    if (!entry) return;
+    loadBriefingById(entry.dataset.briefingId);
+});
+document.getElementById('briefingHistory').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const entry = e.target.closest('.history-entry');
+    if (!entry) return;
+    e.preventDefault();
+    loadBriefingById(entry.dataset.briefingId);
+});
 init();
  
 </script>

@@ -190,21 +190,98 @@
   .tab-panel .action-box { margin-bottom: 0; margin-top: 16px; }
 
   /* Client Update panel */
-  .update-empty { text-align: center; padding: 48px 24px; }
-  .update-empty-title { font-size: 14px; font-weight: 600; color: #C8D8E8; margin-bottom: 8px; }
-  .update-empty-sub { font-size: 13px; color: #4A6A8A; margin-bottom: 24px; line-height: 1.6; }
-  .update-generate-btn { background: #C9A84C; color: #0C1520; border: none; border-radius: 6px; padding: 10px 22px; font-size: 13px; font-weight: 700; cursor: pointer; }
-  .update-generate-btn:hover { opacity: 0.85; }
-  .update-box { background: #131F2E; border: 1px solid #1E3448; border-radius: 8px; padding: 24px 28px; line-height: 1.9; font-size: 13px; color: #C8D8E8; white-space: pre-wrap; }
-  .update-actions { display: flex; gap: 8px; margin-bottom: 20px; }
-  .copy-btn { background: transparent; border: 1px solid #1E3448; color: #4A7A9B; border-radius: 6px; padding: 8px 14px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
-  .copy-btn:hover { border-color: #4A7A9B; color: #C8D8E8; background: #1A2E42; }
-  .copy-btn.copied { border-color: #8AB830; color: #8AB830; }
+  .update-empty { background: #131F2E; border: 1px solid #1E3448; border-left: 3px solid #C9A84C; border-radius: 8px; overflow: hidden; text-align: left; padding: 0; }
+  .update-empty-header { display: flex; align-items: center; gap: 14px; padding: 18px 20px; border-bottom: 1px solid #1E3448; background: rgba(0,0,0,0.12); }
+  .update-empty-icon { width: 34px; height: 34px; border-radius: 7px; display: grid; place-items: center; flex-shrink: 0; background: rgba(201,168,76,0.10); border: 1px solid rgba(201,168,76,0.28); color: #C9A84C; font-size: 16px; }
+  .update-empty-kicker { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: #C9A84C; font-weight: 700; margin-bottom: 4px; }
+  .update-empty-title { font-size: 14px; font-weight: 700; color: #E8EFF6; line-height: 1.35; margin: 0; }
+  .update-empty-body { padding: 20px; }
+  .update-empty-sub { max-width: 680px; font-size: 13px; color: #8AAABF; margin-bottom: 18px; line-height: 1.7; }
+  .update-empty-note { display: flex; align-items: flex-start; gap: 9px; padding: 11px 13px; margin-bottom: 18px; background: #0F1D2E; border: 1px solid #1A2E42; border-radius: 6px; color: #6B8FAF; font-size: 11px; line-height: 1.55; }
+  .update-empty-note-mark { color: #C9A84C; font-weight: 800; flex-shrink: 0; }
+  .update-empty-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .update-empty-footnote { font-size: 10px; color: #3A5570; line-height: 1.5; }
+  .update-generate-btn { background: #C9A84C; color: #0C1520; border: none; border-radius: 6px; padding: 10px 22px; font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity 0.15s, transform 0.15s; }
+  .update-generate-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+  .update-document { background: #131F2E; border: 1px solid #1E3448; border-left: 3px solid #C9A84C; border-radius: 8px; overflow: hidden; }
+  .update-document-header { padding: 18px 20px; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; border-bottom: 1px solid #1E3448; background: rgba(0,0,0,0.10); }
+  .update-document-kicker { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #C9A84C; font-weight: 700; margin-bottom: 6px; }
+  .update-document-title { font-size: 16px; line-height: 1.3; color: #F0F4F8; font-weight: 700; }
+  .update-document-meta { flex-shrink: 0; text-align: right; }
+  .update-document-meta-label { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: #4A7A9B; margin-bottom: 4px; }
+  .update-document-meta-value { font-size: 12px; color: #8AAABF; }
+  .update-actions { display: flex; gap: 8px; align-items: center; padding: 12px 20px; border-bottom: 1px solid #1E3448; background: #0F1D2E; }
+  .copy-btn { background: transparent; border: 1px solid #2A4055; color: #8AAABF; border-radius: 6px; padding: 8px 14px; font-size: 11px; font-weight: 650; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+  .copy-btn:hover { border-color: #4A7A9B; color: #E8EFF6; background: #1A2E42; }
+  .copy-btn.copied { border-color: #8AB830; color: #A9D667; background: #1F2A0F; }
+  .update-regenerate-btn { background: transparent; border: 1px solid #6B5929; color: #C9A84C; border-radius: 6px; padding: 8px 14px; font-size: 11px; font-weight: 650; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+  .update-regenerate-btn:hover { background: rgba(201,168,76,0.08); border-color: #C9A84C; }
+  .update-box { padding: 26px 28px 30px; color: #C8D8E8; font-size: 13px; line-height: 1.85; }
+  .update-box p { margin: 0 0 16px; }
+  .update-box p:last-child { margin-bottom: 0; }
+  .update-subject { margin: 20px 20px 0; padding: 12px 14px; background: #0F1D2E; border: 1px solid #1A2E42; border-radius: 6px; display: flex; gap: 12px; align-items: baseline; }
+  .update-subject-label { flex-shrink: 0; font-size: 9px; letter-spacing: 0.11em; text-transform: uppercase; color: #C9A84C; font-weight: 750; }
+  .update-subject-text { font-size: 12px; color: #C8D8E8; line-height: 1.5; }
+  .update-section-heading { margin: 20px 0 8px; font-size: 10px; letter-spacing: 0.11em; text-transform: uppercase; color: #C9A84C; font-weight: 750; }
+  .update-section-heading:first-child { margin-top: 0; }
+  .update-discussion { margin: 8px 0 16px; padding: 0; list-style: none; }
+  .update-discussion li { position: relative; padding-left: 16px; margin: 0 0 8px; color: #C8D8E8; line-height: 1.7; }
+  .update-discussion li::before { content: '—'; position: absolute; left: 0; color: #C9A84C; }
+  .update-mode-badge { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: #6B8FAF; font-size: 10px; }
+  .update-mode-badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #C9A84C; }
+  .update-document-footer { border-top: 1px solid #1E3448; padding: 11px 20px; display: flex; align-items: center; gap: 8px; color: #4A6A8A; font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .update-document-footer-dot { width: 5px; height: 5px; background: #C9A84C; border-radius: 50%; flex-shrink: 0; }
+  @media (max-width: 620px) { .update-document-header { flex-direction: column; } .update-document-meta { text-align: left; } .update-actions { flex-wrap: wrap; } .update-box { padding: 22px 20px 26px; } }
 
  #mainPanel {
     background: #0C1520 !important;
     color: #ffffff;
 }
+
+
+  /* Phase 2 — Since Last Briefing */
+  .comparison-overview { background: #131F2E; border: 1px solid #1E3448; border-left: 3px solid #C9A84C; border-radius: 8px; overflow: hidden; }
+  .comparison-ribbon { width: 100%; background: transparent; border: none; color: inherit; padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; gap: 18px; cursor: pointer; text-align: left; font-family: inherit; }
+  .comparison-ribbon:hover { background: rgba(201,168,76,0.035); }
+  .comparison-ribbon-main { min-width: 0; }
+  .comparison-kicker { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #C9A84C; font-weight: 700; margin-bottom: 6px; }
+  .comparison-summary { font-size: 13px; color: #C8D8E8; line-height: 1.65; max-width: 760px; }
+  .comparison-chevron { color: #C9A84C; font-size: 18px; transition: transform 0.2s ease; flex-shrink: 0; }
+  .comparison-overview.expanded .comparison-chevron { transform: rotate(180deg); }
+  .comparison-stats { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); border-top: 1px solid #1E3448; border-bottom: 1px solid #1E3448; }
+  .comparison-stat { padding: 14px 18px; border-right: 1px solid #1E3448; }
+  .comparison-stat:last-child { border-right: none; }
+  .comparison-stat-value { font-size: 22px; line-height: 1; color: #F0F4F8; font-weight: 750; margin-bottom: 6px; }
+  .comparison-stat-label { font-size: 10px; color: #6B8FAF; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1.4; }
+  .comparison-details { display: none; padding: 18px 20px 20px; }
+  .comparison-overview.expanded .comparison-details { display: block; }
+  .comparison-list { display: flex; flex-direction: column; gap: 10px; }
+  .comparison-change { background: #0F1D2E; border: 1px solid #1E3448; border-radius: 7px; padding: 14px 16px; }
+  .comparison-change-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .change-type { font-size: 9px; font-weight: 750; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 7px; border-radius: 4px; }
+  .change-type.new { background: #1A6B5A44; color: #71D1B5; border: 1px solid #1A6B5A88; }
+  .change-type.escalated { background: #7A3A2A44; color: #E88A70; border: 1px solid #7A3A2A88; }
+  .change-type.deescalated { background: #4A5E7A44; color: #9BB7D0; border: 1px solid #4A5E7A88; }
+  .change-type.resolved { background: #47651F44; color: #A9D667; border: 1px solid #47651F88; }
+  .change-type.unchanged { background: #243244; color: #7F98AD; border: 1px solid #34495E; }
+  .comparison-change-title { font-size: 13px; font-weight: 650; color: #E8EFF6; }
+  .comparison-change-copy { font-size: 12px; color: #8AAABF; line-height: 1.65; }
+  .comparison-implication { margin-top: 8px; padding-top: 8px; border-top: 1px solid #1A2E42; font-size: 12px; color: #C8D8E8; line-height: 1.55; }
+  .comparison-implication strong { color: #C9A84C; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; margin-right: 5px; }
+  .comparison-empty { background: #131F2E; border: 1px solid #1E3448; border-left: 3px solid #C9A84C; border-radius: 8px; overflow: hidden; color: #6B8FAF; font-size: 13px; }
+  .comparison-empty-header { display: flex; align-items: center; gap: 14px; padding: 18px 20px; border-bottom: 1px solid #1E3448; background: rgba(0,0,0,0.12); }
+  .comparison-empty-icon { width: 34px; height: 34px; border-radius: 7px; display: grid; place-items: center; flex-shrink: 0; background: rgba(201,168,76,0.10); border: 1px solid rgba(201,168,76,0.28); color: #C9A84C; font-size: 16px; }
+  .comparison-empty-kicker { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: #C9A84C; font-weight: 700; margin-bottom: 4px; }
+  .comparison-empty-title { font-size: 14px; font-weight: 700; color: #E8EFF6; line-height: 1.35; }
+  .comparison-empty-body { padding: 20px; }
+  .comparison-empty-copy { max-width: 680px; color: #8AAABF; line-height: 1.7; margin-bottom: 18px; }
+  .comparison-empty-note { display: flex; align-items: flex-start; gap: 9px; padding: 11px 13px; margin-bottom: 18px; background: #0F1D2E; border: 1px solid #1A2E42; border-radius: 6px; color: #6B8FAF; font-size: 11px; line-height: 1.55; }
+  .comparison-empty-note-mark { color: #C9A84C; font-weight: 800; flex-shrink: 0; }
+  .comparison-empty-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .comparison-empty-actions .update-generate-btn { padding: 10px 18px; }
+  .comparison-empty-footnote { font-size: 10px; color: #3A5570; line-height: 1.5; }
+
+  @media (max-width: 760px) { .comparison-stats { grid-template-columns: 1fr; } .comparison-stat { border-right: none; border-bottom: 1px solid #1E3448; } .comparison-stat:last-child { border-bottom: none; } }
 
   @media print {
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -353,27 +430,190 @@ const sb = window.supabase.createClient(
 let currentIdx = 0;
 let modalMode = 'add';
 let activeBriefingId = null;
+
+const currentSession = {
+  briefing: null,
+  comparison: null,
+  clientUpdate: null,
+  previousBriefing: null,
+  currentBriefing: null
+};
  
 function splitCSV(s) { return s.split(',').map(x=>x.trim()).filter(Boolean); }
  
 async function saveBriefing(clientId, brief) {
- 
-    const { error } = await sb
-        .from("briefings")
-        .insert({
-            client_id: clientId,
-            summary: brief.summary,
-            call_to_action: brief.callToAction,
-            briefing_json: brief
-        });
- 
-    if (error) {
-        console.error("Failed to save briefing:", error);
-    } else {
-        console.log("Briefing saved.");
-    }
- 
+  const { data, error } = await sb
+    .from("briefings")
+    .insert({
+      client_id: clientId,
+      summary: brief.summary,
+      call_to_action: brief.callToAction,
+      briefing_json: brief
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    console.error("Failed to save briefing:", error);
+    throw new Error("Briefing could not be saved");
+  }
+
+  console.log("Briefing saved.");
+  return data;
 }
+
+function normaliseBriefingForComparison(brief) {
+  if (!brief || typeof brief !== 'object') return null;
+  return {
+    advisor_summary: String(brief.summary || '').trim(),
+    call_to_action: String(brief.callToAction || '').trim(),
+    sections: (Array.isArray(brief.items) ? brief.items : []).map(item => ({
+      title: String(item.headline || '').trim(),
+      risk: String(item.priority || 'Low').trim(),
+      relevance: String(item.relevance || '').trim(),
+      content: String(item.detail || '').trim(),
+      talking_point: String(item.suggestedTalkingPoint || '').trim()
+    })).filter(section => section.title || section.content)
+  };
+}
+
+function extractClaudeJson(result) {
+  const text = (result?.content || [])
+    .filter(block => block.type === 'text')
+    .map(block => block.text)
+    .join('')
+    .replace(/```json/gi, '')
+    .replace(/```/g, '')
+    .trim();
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start === -1 || end === -1 || end < start) throw new Error('Claude did not return valid JSON');
+  return JSON.parse(text.slice(start, end + 1));
+}
+
+async function loadPreviousBriefing(clientId, excludeBriefingId = null) {
+  let query = sb
+    .from('briefings')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (excludeBriefingId) query = query.neq('id', excludeBriefingId);
+  const { data, error } = await query.maybeSingle();
+  if (error) {
+    console.error('Failed to load previous briefing:', error);
+    return null;
+  }
+  return data;
+}
+
+async function saveBriefingComparison(clientId, previousBriefingId, currentBriefingId, comparison) {
+  const { data, error } = await sb
+    .from('briefing_comparisons')
+    .insert({
+      client_id: clientId,
+      previous_briefing_id: previousBriefingId,
+      current_briefing_id: currentBriefingId,
+      comparison_json: comparison,
+      comparison_html: comparison.html || ''
+    })
+    .select('*')
+    .single();
+  if (error) {
+    console.error('Failed to save briefing comparison:', error);
+    throw new Error('Comparison could not be saved');
+  }
+  return data;
+}
+
+async function loadComparisonForBriefing(briefingId) {
+  const { data, error } = await sb
+    .from('briefing_comparisons')
+    .select('*')
+    .eq('current_briefing_id', briefingId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.error('Failed to load comparison:', error);
+    return null;
+  }
+  return data;
+}
+
+async function generateBriefingComparison(previousRow, currentRow, apiKey, client) {
+  if (!previousRow || !currentRow) return null;
+
+  const previous = normaliseBriefingForComparison(previousRow.briefing_json);
+  const current = normaliseBriefingForComparison(currentRow.briefing_json);
+  const prompt = `You are a senior commercial intelligence analyst for a UK business advisory firm.
+
+Compare the two structured intelligence briefings for ${client.name}. Identify only meaningful changes since the previous briefing.
+
+Use a small, targeted web search to verify the current status of developments that appear in either briefing and to identify whether a material development has occurred since the current briefing was generated. Treat the saved briefings as the primary comparison source. Use web findings only to validate, clarify or update the current position; do not introduce unrelated news or speculate.
+
+PREVIOUS BRIEFING:
+${JSON.stringify(previous)}
+
+CURRENT BRIEFING:
+${JSON.stringify(current)}
+
+Return ONLY valid JSON matching this schema:
+{
+  "summary": "Maximum 55 words describing the overall movement",
+  "significantChangeCount": 0,
+  "newOpportunityCount": 0,
+  "resolvedRiskCount": 0,
+  "changes": [
+    {
+      "type": "new|escalated|deescalated|resolved|unchanged",
+      "title": "Maximum 12 words",
+      "priority": "High|Medium|Low",
+      "explanation": "Maximum 35 words",
+      "advisorImplication": "Maximum 25 words"
+    }
+  ],
+  "html": "A compact HTML fragment summarising the comparison"
+}
+
+Rules:
+- Include at most 6 changes and exclude trivial wording differences.
+- significantChangeCount must equal the number of changes whose type is not unchanged.
+- newOpportunityCount counts genuinely new advisory opportunities.
+- resolvedRiskCount counts risks present previously but no longer active.
+- HTML may use only: <div>, <p>, <strong>, <span>, <ul>, <li>.
+- HTML must contain no scripts, styles, links, event handlers or markdown.
+- Use concise, board-ready British English.
+- Where web research materially changes the assessment, state that change plainly in the explanation without adding URLs or citations to the JSON.
+- Return JSON only.`;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json', 'x-api-key':apiKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1800,
+      tools: [
+        {
+          type: 'web_search_20250305',
+          name: 'web_search',
+          max_uses: 3
+        }
+      ],
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  const result = await response.json();
+  if (!response.ok || result.error) throw new Error(result.error?.message || 'Comparison API error');
+  const comparison = extractClaudeJson(result);
+  comparison.changes = Array.isArray(comparison.changes) ? comparison.changes.slice(0, 6) : [];
+  comparison.significantChangeCount = Number(comparison.significantChangeCount || 0);
+  comparison.newOpportunityCount = Number(comparison.newOpportunityCount || 0);
+  comparison.resolvedRiskCount = Number(comparison.resolvedRiskCount || 0);
+  comparison.html = String(comparison.html || '');
+  return comparison;
+}
+
 async function loadLatestBriefing(clientId) {
  
     const { data, error } = await sb
@@ -481,7 +721,13 @@ activeBriefingId = latest ? latest.id : null;
 renderHistory(history, activeBriefingId);
 
 if (latest) {
-    renderBrief(latest.briefing_json, c.name, latest.created_at);
+    await loadBriefingById(latest.id);
+} else {
+    currentSession.briefing = null;
+    currentSession.currentBriefing = null;
+    currentSession.previousBriefing = null;
+    currentSession.comparison = null;
+    currentSession.clientUpdate = null;
 }
  
 }
@@ -785,14 +1031,29 @@ if (jsonStart === -1) {
 const jsonText = cleaned.slice(jsonStart);
 const brief = JSON.parse(jsonText);
  
-await saveBriefing(c.id, brief);
- 
-const history = await loadBriefingHistory(c.id);
-const latest = history[0] || null;
+const previousRow = await loadPreviousBriefing(c.id);
+const currentRow = await saveBriefing(c.id, brief);
+let comparison = null;
 
-activeBriefingId = latest ? latest.id : null;
+if (previousRow) {
+  try {
+    comparison = await generateBriefingComparison(previousRow, currentRow, apiKey, c);
+    await saveBriefingComparison(c.id, previousRow.id, currentRow.id, comparison);
+  } catch (comparisonError) {
+    console.error('Brief generated, but comparison failed:', comparisonError);
+  }
+}
+
+currentSession.briefing = brief;
+currentSession.currentBriefing = currentRow;
+currentSession.previousBriefing = previousRow;
+currentSession.comparison = comparison;
+currentSession.clientUpdate = null;
+
+const history = await loadBriefingHistory(c.id);
+activeBriefingId = currentRow.id;
 renderHistory(history, activeBriefingId);
-renderBrief(brief, c.name, latest ? latest.created_at : null);
+renderBrief(brief, c.name, currentRow.created_at);
  
 } catch(err) {
     document.getElementById('mainPanel').innerHTML =
@@ -804,6 +1065,82 @@ renderBrief(brief, c.name, latest ? latest.created_at : null);
 }
 }
  
+
+function escapeComparisonHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function renderComparisonPanel(comparison) {
+  if (!comparison) {
+    return `<div class="comparison-empty">
+      <div class="comparison-empty-header">
+        <div class="comparison-empty-icon">↻</div>
+        <div>
+          <div class="comparison-empty-kicker">Since Last Briefing</div>
+          <div class="comparison-empty-title">Comparison not generated yet</div>
+        </div>
+      </div>
+      <div class="comparison-empty-body">
+        <div class="comparison-empty-copy">A previous briefing is available, so this intelligence brief can be compared against the prior position. Generate the comparison to identify material changes, new advisory opportunities and risks that have been resolved.</div>
+        <div class="comparison-empty-note">
+          <span class="comparison-empty-note-mark">i</span>
+          <span>This compares the two saved briefings and runs a small, targeted web check to validate the latest position. The result is stored for future viewing.</span>
+        </div>
+        <div class="comparison-empty-actions">
+          <button class="update-generate-btn" onclick="generateComparisonForCurrentBriefing()">Generate Since Last Briefing</button>
+          <span class="comparison-empty-footnote">One comparison call · saved automatically</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  const changes = Array.isArray(comparison.changes) ? comparison.changes : [];
+  const changeCards = changes.length ? changes.map(change => {
+    const type = ['new','escalated','deescalated','resolved','unchanged'].includes(String(change.type).toLowerCase())
+      ? String(change.type).toLowerCase() : 'unchanged';
+    return `
+      <div class="comparison-change">
+        <div class="comparison-change-head">
+          <span class="change-type ${type}">${escapeComparisonHtml(type)}</span>
+          <span class="badge badge-${String(change.priority || 'low').toLowerCase()}">${escapeComparisonHtml(change.priority || 'Low')}</span>
+          <span class="comparison-change-title">${escapeComparisonHtml(change.title)}</span>
+        </div>
+        <div class="comparison-change-copy">${escapeComparisonHtml(change.explanation)}</div>
+        ${change.advisorImplication ? `<div class="comparison-implication"><strong>Advisor implication</strong>${escapeComparisonHtml(change.advisorImplication)}</div>` : ''}
+      </div>`;
+  }).join('') : '<div class="comparison-empty">No material changes were detected.</div>';
+
+  return `
+    <div class="comparison-overview" id="comparisonOverview">
+      <button class="comparison-ribbon" type="button" onclick="toggleComparisonDetails()" aria-expanded="false" aria-controls="comparisonDetails">
+        <div class="comparison-ribbon-main">
+          <div class="comparison-kicker">Since Last Briefing</div>
+          <div class="comparison-summary">${escapeComparisonHtml(comparison.summary || 'Comparison complete.')}</div>
+        </div>
+        <span class="comparison-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <div class="comparison-stats">
+        <div class="comparison-stat"><div class="comparison-stat-value">${Number(comparison.significantChangeCount || 0)}</div><div class="comparison-stat-label">Significant changes detected</div></div>
+        <div class="comparison-stat"><div class="comparison-stat-value">${Number(comparison.newOpportunityCount || 0)}</div><div class="comparison-stat-label">New advisory opportunities</div></div>
+        <div class="comparison-stat"><div class="comparison-stat-value">${Number(comparison.resolvedRiskCount || 0)}</div><div class="comparison-stat-label">Previous risks resolved</div></div>
+      </div>
+      <div class="comparison-details" id="comparisonDetails"> <div class="comparison-list">${changeCards}</div> </div>
+    </div>`;
+}
+
+function toggleComparisonDetails() {
+  const overview = document.getElementById('comparisonOverview');
+  if (!overview) return;
+  const expanded = overview.classList.toggle('expanded');
+  const button = overview.querySelector('.comparison-ribbon');
+  if (button) button.setAttribute('aria-expanded', String(expanded));
+}
+
 function renderBrief(brief, clientName, generatedAt) {
   const ts = generatedAt
     ? new Date(generatedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
@@ -846,6 +1183,7 @@ function renderBrief(brief, clientName, generatedAt) {
 
     <div class="tab-bar">
       <button class="tab-btn active" onclick="switchTab('brief', this)">Intelligence Brief</button>
+      ${currentSession.previousBriefing ? '<button class="tab-btn" onclick="switchTab(\'comparison\', this)">Since Last Briefing</button>' : ''}
       <button class="tab-btn" onclick="switchTab('update', this)">Client Update</button>
     </div>
 
@@ -858,12 +1196,10 @@ function renderBrief(brief, clientName, generatedAt) {
       <div class="items-list">${items}</div>
     </div>
 
+    ${currentSession.previousBriefing ? `<div class="tab-panel" id="tab-comparison">${renderComparisonPanel(currentSession.comparison)}</div>` : ''}
+
     <div class="tab-panel" id="tab-update">
-      <div class="update-empty">
-        <div class="update-empty-title">No client update generated yet</div>
-        <div class="update-empty-sub">Generate a plain-English client-facing email based on this intelligence brief.</div>
-        <button class="update-generate-btn" onclick="generateClientUpdate()">Generate Client Update</button>
-      </div>
+      ${renderClientUpdateEmpty()}
     </div>
   `;
 }
@@ -875,24 +1211,52 @@ function switchTab(tab, btn) {
   document.getElementById('tab-' + tab).classList.add('active');
 }
 
+
+async function generateComparisonForCurrentBriefing() {
+  const c = CLIENTS[currentIdx];
+  const currentRow = currentSession.currentBriefing;
+  const previousRow = currentSession.previousBriefing;
+  const apiKey = document.getElementById('apiKey')?.value?.trim();
+
+  if (!c || !currentRow || !previousRow) {
+    alert('A current and previous briefing are required.');
+    return;
+  }
+  if (!apiKey) {
+    alert('Enter your Claude API key first.');
+    return;
+  }
+
+  const panel = document.getElementById('tab-comparison');
+  if (panel) panel.innerHTML = '<div class="loading-state" style="height:260px"><div class="spinner"></div><div class="loading-text">Comparing with the previous briefing…</div></div>';
+
+  try {
+    const comparison = await generateBriefingComparison(previousRow, currentRow, apiKey, c);
+    await saveBriefingComparison(c.id, previousRow.id, currentRow.id, comparison);
+    currentSession.comparison = comparison;
+    if (panel) panel.innerHTML = renderComparisonPanel(comparison);
+  } catch (error) {
+    console.error('Failed to generate comparison:', error);
+    if (panel) panel.innerHTML = `<div class="error-box">Comparison generation failed: ${escapeComparisonHtml(error.message || 'Unknown error')}</div>`;
+  }
+}
+
 async function generateClientUpdate() {
   const c = CLIENTS[currentIdx];
   if (!c) return;
 
-  // Get the current briefing JSON from the rendered brief
   const panel = document.getElementById('tab-update');
-  panel.innerHTML = '<div class="update-empty"><div class="loading-state" style="height:auto;padding:48px 0"><div class="spinner"></div><div class="loading-text">Generating client update...</div></div></div>';
+  panel.innerHTML = '<div class="update-empty"><div class="loading-state" style="height:auto;padding:48px 0"><div class="spinner"></div><div class="loading-text">Building a since-we-last-met client update…</div></div></div>';
 
   const apiKey = document.getElementById('apiKey').value.trim();
   if (!apiKey) { panel.innerHTML = '<div class="error-box">Please enter your API key.</div>'; return; }
 
-  // Get brief JSON from Supabase (latest for this client)
+  const briefingId = currentSession.currentBriefing?.id || activeBriefingId;
   const { data, error } = await sb
     .from('briefings')
     .select('*')
     .eq('client_id', c.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
+    .eq('id', briefingId)
     .single();
 
   if (error || !data) {
@@ -900,69 +1264,248 @@ async function generateClientUpdate() {
     return;
   }
 
-  const brief = data.briefing_json;
-
-  const prompt = `You are a client relationship advisor at Oldfield Advisory, a UK business advisory firm.
-
-Using the intelligence brief below, write a short client-facing email to be sent ahead of a quarterly meeting.
-
-Client: ${c.name}
-
-Intelligence Brief:
-${JSON.stringify(brief, null, 2)}
-
-Rules:
-- Tone must be calm, collaborative and reassuring — never alarmist
-- Write as a trusted advisor who has been quietly watching the market on the client's behalf
-- Do not use jargon or technical language
-- Reference specific findings from the brief but do not reproduce it verbatim
-- Each paragraph should cover one theme only
-- Close by signalling the advisor will come prepared with questions
-- Never use bullet points — flowing prose only
-- Maximum 300 words
-- Do not mention Oldfield Advisory more than once
-- Do not include a sign off or signature
-- Return plain text only, no markdown, no formatting`;
+  const currentBrief = data.briefing_json;
+  let previousRow = currentSession.previousBriefing;
+  let comparison = currentSession.comparison;
 
   try {
+    // Stage 3: when a prior briefing exists, make the client update comparison-led.
+    // Older records may not yet have a stored comparison, so create and persist it first.
+    if (previousRow && !comparison) {
+      panel.innerHTML = '<div class="update-empty"><div class="loading-state" style="height:auto;padding:48px 0"><div class="spinner"></div><div class="loading-text">Validating what has changed since the previous briefing…</div></div></div>';
+      comparison = await generateBriefingComparison(previousRow, data, apiKey, c);
+      await saveBriefingComparison(c.id, previousRow.id, data.id, comparison);
+      currentSession.comparison = comparison;
+
+      const comparisonPanel = document.getElementById('tab-comparison');
+      if (comparisonPanel) comparisonPanel.innerHTML = renderComparisonPanel(comparison);
+    }
+
+    const previousBrief = previousRow?.briefing_json || null;
+    const hasComparison = Boolean(previousBrief && comparison);
+
+    const prompt = hasComparison
+      ? `You are a senior client relationship advisor at Oldfield Advisory, a UK business advisory firm.
+
+Write a concise client-facing update for ${c.name}. This is not a news summary. It must explain what has materially changed since the previous briefing, in natural language suitable for sending before a meeting.
+
+PREVIOUS BRIEFING:
+${JSON.stringify(normaliseBriefingForComparison(previousBrief))}
+
+CURRENT BRIEFING:
+${JSON.stringify(normaliseBriefingForComparison(currentBrief))}
+
+VALIDATED COMPARISON:
+${JSON.stringify(comparison)}
+
+Return ONLY valid JSON matching this schema:
+{
+  "subject": "A specific email subject, maximum 12 words",
+  "opening": "A warm opening paragraph that naturally begins from the idea of since we last met or since our last update",
+  "material_changes": [
+    { "heading": "Maximum 8 words", "content": "One client-facing paragraph" }
+  ],
+  "resolved_or_stabilised": "Optional paragraph, or empty string",
+  "discussion_points": ["One natural discussion point", "Another natural discussion point"],
+  "closing": "A brief collaborative closing paragraph without a sign-off",
+  "plain_text": "The complete email in flowing prose with paragraph breaks"
+}
+
+Rules:
+- Lead with change, not generic news.
+- Include only new, escalated, de-escalated or resolved developments that matter to the client.
+- Do not expose internal labels such as risk level, comparison type or advisory opportunity.
+- Translate intelligence into commercial implications in calm, plain British English.
+- Do not overstate certainty or manufacture urgency.
+- If little has materially changed, say so confidently and focus on the limited points worth watching.
+- Maximum 320 words in plain_text.
+- No bullet points in plain_text, no markdown, no signature.
+- discussion_points are for rendering in the app; weave them naturally into plain_text as prose.
+- Return JSON only.`
+      : `You are a senior client relationship advisor at Oldfield Advisory, a UK business advisory firm.
+
+There is no previous briefing for ${c.name}, so write a concise first client-facing intelligence update based on the current briefing.
+
+CURRENT BRIEFING:
+${JSON.stringify(normaliseBriefingForComparison(currentBrief))}
+
+Return ONLY valid JSON matching this schema:
+{
+  "subject": "A specific email subject, maximum 12 words",
+  "opening": "A warm introductory paragraph",
+  "material_changes": [{ "heading": "Maximum 8 words", "content": "One client-facing paragraph" }],
+  "resolved_or_stabilised": "",
+  "discussion_points": ["One natural discussion point", "Another natural discussion point"],
+  "closing": "A brief collaborative closing paragraph without a sign-off",
+  "plain_text": "The complete email in flowing prose with paragraph breaks"
+}
+
+Rules:
+- Present this as an initial market update, not as a comparison.
+- Use calm, plain British English and specific evidence from the briefing.
+- Maximum 300 words in plain_text.
+- No bullet points in plain_text, no markdown, no signature.
+- Return JSON only.`;
+
+    panel.innerHTML = '<div class="update-empty"><div class="loading-state" style="height:auto;padding:48px 0"><div class="spinner"></div><div class="loading-text">Writing the client-ready update…</div></div></div>';
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] })
     });
 
     const result = await response.json();
-    if (result.error) throw new Error(result.error.message);
+    if (!response.ok || result.error) throw new Error(result.error?.message || 'Client Update API error');
 
-    const emailText = result.content[0].text.trim();
+    const update = extractClaudeJson(result);
+    update.subject = String(update.subject || 'Client intelligence update').trim();
+    update.opening = String(update.opening || '').trim();
+    update.material_changes = Array.isArray(update.material_changes) ? update.material_changes.slice(0, 4) : [];
+    update.resolved_or_stabilised = String(update.resolved_or_stabilised || '').trim();
+    update.discussion_points = Array.isArray(update.discussion_points) ? update.discussion_points.slice(0, 3).map(String) : [];
+    update.closing = String(update.closing || '').trim();
+    update.plain_text = String(update.plain_text || '').trim() || buildClientUpdatePlainText(update);
+    update.mode = hasComparison ? 'comparison-led' : 'first-briefing';
 
-    // Save to Supabase
-    await sb.from('client_emails').insert({ client_id: c.id, briefing_id: data.id, email_text: emailText });
+    // Store structured JSON in the existing email_text column. Older plain-text rows remain supported.
+    const { error: saveError } = await sb.from('client_emails').insert({
+      client_id: c.id,
+      briefing_id: data.id,
+      email_text: JSON.stringify(update)
+    });
+    if (saveError) throw new Error('Client update was generated but could not be saved: ' + saveError.message);
 
-    renderClientUpdate(emailText);
-
+    currentSession.clientUpdate = update;
+    renderClientUpdate(update);
   } catch (err) {
-    panel.innerHTML = '<div class="error-box">Error: ' + err.message + '</div>';
+    console.error('Client update generation failed:', err);
+    panel.innerHTML = '<div class="error-box">Error: ' + escapeComparisonHtml(err.message || 'Unknown error') + '</div>';
   }
 }
 
-function renderClientUpdate(emailText) {
+function buildClientUpdatePlainText(update) {
+  const parts = [];
+  if (update.opening) parts.push(update.opening);
+  (update.material_changes || []).forEach(item => {
+    if (item?.content) parts.push(String(item.content).trim());
+  });
+  if (update.resolved_or_stabilised) parts.push(update.resolved_or_stabilised);
+  if ((update.discussion_points || []).length) {
+    parts.push('When we meet, it would be useful to discuss ' + update.discussion_points.join('; ') + '.');
+  }
+  if (update.closing) parts.push(update.closing);
+  return parts.filter(Boolean).join('\n\n');
+}
+
+function parseClientUpdatePayload(value) {
+  if (value && typeof value === 'object') return value;
+  const text = String(value || '').trim();
+  if (!text) return null;
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === 'object') return parsed;
+  } catch (_) {}
+  return { subject: 'Client intelligence update', plain_text: text, material_changes: [], discussion_points: [], mode: 'legacy' };
+}
+
+function renderClientUpdate(payload) {
   const panel = document.getElementById('tab-update');
-  panel.innerHTML = '<div class="update-actions"><button class="copy-btn" onclick="copyUpdate(this)">Copy to clipboard</button><button class="update-generate-btn" style="font-size:11px;padding:8px 14px;" onclick="generateClientUpdate()">↻ Regenerate</button></div><div class="update-box">' + emailText + '</div>';
+  if (!panel) return;
+
+  const update = parseClientUpdatePayload(payload);
+  if (!update) { panel.innerHTML = renderClientUpdateEmpty(); return; }
+
+  const c = CLIENTS[currentIdx];
+  const clientName = escapeComparisonHtml(c?.name || 'Client');
+  const subject = escapeComparisonHtml(update.subject || 'Client intelligence update');
+  const modeLabel = update.mode === 'comparison-led' ? 'Since-last-meeting format' : update.mode === 'first-briefing' ? 'Initial update format' : 'Saved client update';
+
+  let content = '';
+  if (update.opening) content += `<p>${escapeComparisonHtml(update.opening)}</p>`;
+  (update.material_changes || []).forEach(item => {
+    const heading = escapeComparisonHtml(item?.heading || 'Material development');
+    const body = escapeComparisonHtml(item?.content || '');
+    if (body) content += `<div class="update-section-heading">${heading}</div><p>${body}</p>`;
+  });
+  if (update.resolved_or_stabilised) {
+    content += `<div class="update-section-heading">What has stabilised</div><p>${escapeComparisonHtml(update.resolved_or_stabilised)}</p>`;
+  }
+  if ((update.discussion_points || []).length) {
+    content += `<div class="update-section-heading">For our discussion</div><ul class="update-discussion">${update.discussion_points.map(point => `<li>${escapeComparisonHtml(point)}</li>`).join('')}</ul>`;
+  }
+  if (update.closing) content += `<p>${escapeComparisonHtml(update.closing)}</p>`;
+
+  if (!content) {
+    content = String(update.plain_text || '')
+      .split(/\n\s*\n/)
+      .map(paragraph => paragraph.trim())
+      .filter(Boolean)
+      .map(paragraph => `<p>${escapeComparisonHtml(paragraph).replace(/\n/g, '<br>')}</p>`)
+      .join('');
+  }
+
+  panel.innerHTML = `
+    <div class="update-document" data-copy-text="${escapeComparisonHtml(update.plain_text || buildClientUpdatePlainText(update)).replace(/&quot;/g, '&amp;quot;')}">
+      <div class="update-document-header">
+        <div>
+          <div class="update-document-kicker">Client Update</div>
+          <div class="update-document-title">Meeting intelligence, prepared for sharing</div>
+        </div>
+        <div class="update-document-meta">
+          <div class="update-document-meta-label">Prepared for</div>
+          <div class="update-document-meta-value">${clientName}</div>
+        </div>
+      </div>
+      <div class="update-actions">
+        <button class="copy-btn" onclick="copyUpdate(this)">Copy email</button>
+        <button class="update-regenerate-btn" onclick="generateClientUpdate()">↻ Regenerate</button>
+        <span class="update-mode-badge">${escapeComparisonHtml(modeLabel)}</span>
+      </div>
+      <div class="update-subject"><span class="update-subject-label">Subject</span><span class="update-subject-text">${subject}</span></div>
+      <div class="update-box">${content || '<p>No client update content was returned.</p>'}</div>
+      <div class="update-document-footer"><span class="update-document-footer-dot"></span>Advisor-ready client communication</div>
+    </div>`;
+}
+
+function renderClientUpdateEmpty() {
+  return `<div class="update-empty">
+    <div class="update-empty-header">
+      <div class="update-empty-icon">✦</div>
+      <div>
+        <div class="update-empty-kicker">Client Update</div>
+        <div class="update-empty-title">No client-facing update generated yet</div>
+      </div>
+    </div>
+    <div class="update-empty-body">
+      <div class="update-empty-sub">Turn this intelligence brief into a polished, plain-English client communication suitable for an email, meeting follow-up or account update.</div>
+      <div class="update-empty-note">
+        <span class="update-empty-note-mark">i</span>
+        <span>The update is generated from the selected intelligence brief and written in a natural, client-ready tone. You can copy or regenerate it once complete.</span>
+      </div>
+      <div class="update-empty-actions">
+        <button class="update-generate-btn" onclick="generateClientUpdate()">Generate Client Update</button>
+        <span class="update-empty-footnote">One generation call · saved with this briefing</span>
+      </div>
+    </div>
+  </div>`;
 }
 
 function renderNoClientUpdate() {
   const panel = document.getElementById('tab-update');
   if (!panel) return;
-  panel.innerHTML = '<div class="update-empty"><div class="update-empty-title">No Client Update generated for this brief</div><div class="update-empty-sub">This brief was generated before the Client Update feature was added. Generate one now to create a client-facing summary.</div><button class="update-generate-btn" onclick="generateClientUpdate()">Generate Client Update</button></div>';
+  panel.innerHTML = renderClientUpdateEmpty();
 }
 
 function copyUpdate(btn) {
-  const text = document.querySelector('.update-box').innerText;
+  const documentCard = btn.closest('.update-document');
+  const update = parseClientUpdatePayload(currentSession.clientUpdate);
+  const subject = update?.subject ? `Subject: ${update.subject}\n\n` : '';
+  const text = subject + (update?.plain_text || documentCard?.querySelector('.update-box')?.innerText || '');
   navigator.clipboard.writeText(text).then(() => {
     btn.textContent = '✓ Copied';
     btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = 'Copy to clipboard'; btn.classList.remove('copied'); }, 2000);
+    setTimeout(() => { btn.textContent = 'Copy email'; btn.classList.remove('copied'); }, 2000);
   });
 }
 
@@ -1103,6 +1646,34 @@ async function loadBriefingById(id) {
     el.classList.toggle('active', el.dataset.briefingId === String(activeBriefingId));
   });
 
+  const comparisonRow = await loadComparisonForBriefing(data.id);
+  let previousRow = null;
+  if (comparisonRow?.previous_briefing_id) {
+    const { data: previousData } = await sb
+      .from('briefings')
+      .select('*')
+      .eq('id', comparisonRow.previous_briefing_id)
+      .maybeSingle();
+    previousRow = previousData || null;
+  } else {
+    const { data: previousData, error: previousError } = await sb
+      .from('briefings')
+      .select('*')
+      .eq('client_id', data.client_id)
+      .lt('created_at', data.created_at)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (previousError) console.error('Failed to locate previous briefing:', previousError);
+    previousRow = previousData || null;
+  }
+
+  currentSession.briefing = data.briefing_json;
+  currentSession.currentBriefing = data;
+  currentSession.previousBriefing = previousRow;
+  currentSession.comparison = comparisonRow?.comparison_json || null;
+  currentSession.clientUpdate = null;
+
   renderBrief(data.briefing_json, c.name, data.created_at);
 
   // Load existing client email for this briefing if one exists
@@ -1117,7 +1688,8 @@ async function loadBriefingById(id) {
         .limit(1)
         .maybeSingle();
       if (emailData && !emailError) {
-        renderClientUpdate(emailData.email_text);
+        currentSession.clientUpdate = parseClientUpdatePayload(emailData.email_text);
+        renderClientUpdate(currentSession.clientUpdate);
       } else {
         renderNoClientUpdate();
       }

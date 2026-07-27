@@ -2013,36 +2013,70 @@ function renderMeetingMode(selectedMeetingId = null) {
   const container = document.getElementById('meetingModeContent');
   const client = CLIENTS[currentIdx];
   if (!container || !client || !currentJourneyData) return;
-  const { current, moments, recommendation } = getMeetingModeState();
-  const stage = current.stage || {};
-  const outstanding = current.items.filter(item => !(currentJourneyData.progress || []).find(row => String(row.journey_item_id) === String(item.id))?.is_complete);
-  const unlocked = moments.filter(row => row.state === 'unlocked');
-  const locked = moments.filter(row => row.state === 'locked');
+
+  const liveState = getMeetingModeState();
   const meetings = currentJourneyData.meetings || [];
   const selectedMeeting = selectedMeetingId ? meetings.find(row => String(row.id) === String(selectedMeetingId)) : null;
-  const latestDraft = meetings.find(row => row.status === 'draft') || null;
-  const latestCompleted = meetings.find(row => row.status === 'completed') || null;
+  const latestDraft = !selectedMeetingId ? (meetings.find(row => row.status === 'draft') || null) : null;
   const latest = selectedMeeting || latestDraft || {};
-  activeJourneyMeetingId = selectedMeeting?.id || (latest.status === 'draft' ? latest.id : null);
-  const rememberedAdvisor = localStorage.getItem('oldfieldJourneyAdvisorName') || latest.advisor_name || '';
+  const isExistingMeeting = Boolean(latest.id);
+  const snapshot = isExistingMeeting && latest.snapshot && typeof latest.snapshot === 'object' ? latest.snapshot : null;
+
+  activeJourneyMeetingId = latest.id || null;
+
+  // Existing meetings are rendered from their saved snapshot so later journey
+  // progression never rewrites the historical context of the meeting.
+  const stage = snapshot?.stage || liveState.current.stage || {};
+  const stageProgress = snapshot?.stage_progress || { complete: liveState.current.complete, total: liveState.current.total };
+  const snapshotOutstanding = Array.isArray(snapshot?.outstanding_actions) ? snapshot.outstanding_actions : null;
+  const outstanding = snapshotOutstanding || liveState.current.items.filter(item => !(currentJourneyData.progress || []).find(row => String(row.journey_item_id) === String(item.id))?.is_complete);
+  const snapshotMoments = Array.isArray(snapshot?.decision_moments) ? snapshot.decision_moments : null;
+  const moments = snapshotMoments || liveState.moments.map(row => ({
+    id: row.moment.id,
+    title: row.moment.title,
+    decision_prompt: row.moment.decision_prompt,
+    state: row.state,
+    missing_requirements: row.missing
+  }));
+  const unlocked = moments.filter(row => row.state === 'unlocked');
+  const locked = moments.filter(row => row.state === 'locked');
+  const recommendation = snapshot?.advisor_recommendation ?? liveState.recommendation;
+
+  const rememberedAdvisor = latest.advisor_name || localStorage.getItem('oldfieldJourneyAdvisorName') || '';
   const today = new Date().toISOString().slice(0,10);
   const logoImgs = Array.from(document.querySelectorAll('.header-brand img')).map(img => img.src).slice(0,2);
   const brand = logoImgs.map((src,i)=>`<img src="${src}" alt="${i ? 'Oldfield' : ''}">`).join('');
-  const actionHtml = outstanding.length ? outstanding.map(item => `<label class="meeting-action"><input type="checkbox" onchange="toggleJourneyItem('${item.id}',this.checked).then(()=>renderMeetingMode())"><span>${escapeComparisonHtml(item.title)}</span></label>`).join('') : '<div class="meeting-empty">All checklist actions in this stage are complete.</div>';
-  const unlockedHtml = unlocked.length ? unlocked.map(({moment}) => `<div class="meeting-decision"><div class="meeting-decision-state">Decision moment unlocked</div><div class="meeting-decision-title">${escapeComparisonHtml(moment.title || 'Decision moment')}</div><div class="meeting-decision-copy">${escapeComparisonHtml(moment.decision_prompt || 'Record the business-owner decision enabled by the completed actions.')}</div></div>`).join('') : '<div class="meeting-empty">No unresolved Decision Moments are currently unlocked.</div>';
-  const lockedHtml = locked.length ? locked.map(({moment,missing}) => `<div class="meeting-decision"><div class="meeting-decision-state">Coming next</div><div class="meeting-decision-title">${escapeComparisonHtml(moment.title || 'Next decision moment')}</div><div class="meeting-decision-copy">Complete ${escapeComparisonHtml(formatDecisionMomentRequirements(missing))} to unlock.</div></div>`).join('') : '<div class="meeting-empty">No additional locked Decision Moments in this stage.</div>';
-  const priorCommitments = latestCompleted?.commitments || latestCompleted?.next_actions || 'No previous completed meeting commitments have been recorded yet.';
+
+  const actionHtml = outstanding.length ? outstanding.map(item => {
+    if (isExistingMeeting) {
+      return `<div class="meeting-action"><span style="width:14px;color:${escapeComparisonHtml(stage.colour || '#C9A84C')}">•</span><span>${escapeComparisonHtml(item.title)}</span></div>`;
+    }
+    return `<label class="meeting-action"><input type="checkbox" onchange="toggleJourneyItem('${item.id}',this.checked).then(()=>renderMeetingMode())"><span>${escapeComparisonHtml(item.title)}</span></label>`;
+  }).join('') : '<div class="meeting-empty">All checklist actions in this stage were complete.</div>';
+
+  const unlockedHtml = unlocked.length ? unlocked.map(moment => `<div class="meeting-decision"><div class="meeting-decision-state">Decision moment unlocked</div><div class="meeting-decision-title">${escapeComparisonHtml(moment.title || 'Decision moment')}</div><div class="meeting-decision-copy">${escapeComparisonHtml(moment.decision_prompt || 'The business-owner decision was ready to be discussed at this meeting.')}</div></div>`).join('') : '<div class="meeting-empty">No unresolved Decision Moments were unlocked at this point.</div>';
+  const lockedHtml = locked.length ? locked.map(moment => `<div class="meeting-decision"><div class="meeting-decision-state">Coming next</div><div class="meeting-decision-title">${escapeComparisonHtml(moment.title || 'Next decision moment')}</div><div class="meeting-decision-copy">${(moment.missing_requirements || []).length ? `Complete ${escapeComparisonHtml(formatDecisionMomentRequirements(moment.missing_requirements))} to unlock.` : 'Prerequisite actions were still outstanding.'}</div></div>`).join('') : '<div class="meeting-empty">No additional locked Decision Moments were recorded in this stage.</div>';
+
+  const selectedIndex = isExistingMeeting ? meetings.findIndex(row => String(row.id) === String(latest.id)) : -1;
+  const earlierCompleted = isExistingMeeting
+    ? meetings.slice(selectedIndex + 1).find(row => row.status === 'completed')
+    : meetings.find(row => row.status === 'completed');
+  const priorCommitments = earlierCompleted?.commitments || earlierCompleted?.next_actions || 'No previous completed meeting commitments had been recorded.';
+  const contextLabel = isExistingMeeting ? 'Saved meeting snapshot' : 'Current journey position';
+  const contextCopy = isExistingMeeting
+    ? 'This meeting is shown exactly as it was saved. Later checklist completion and stage progression do not alter this historical record.'
+    : 'Use the live journey position to agree priorities, surface decisions and capture the commitments that will move the client forward.';
+
   container.innerHTML = `<div class="meeting-mode-topbar"><div class="meeting-mode-brand">${brand}<div class="meeting-mode-label">Meeting Mode</div></div><div class="meeting-mode-top-actions"><button class="meeting-mode-btn" type="button" onclick="saveMeetingMode('draft')">Save draft</button><button class="meeting-mode-btn complete" type="button" onclick="saveMeetingMode('completed')">Complete meeting</button><button class="meeting-mode-btn" type="button" onclick="closeMeetingMode()">Exit</button></div></div>
-  <main class="meeting-mode-canvas" style="--meeting-stage-colour:${escapeComparisonHtml(stage.colour || '#C9A84C')}"><section class="meeting-mode-hero"><div><div class="meeting-mode-kicker">Client meeting · ${escapeComparisonHtml(client.name)}</div><div class="meeting-mode-title">Focused advisory session</div><div class="meeting-mode-sub">Use the live journey position to agree priorities, surface decisions and capture the commitments that will move the client forward.</div></div><div class="meeting-stage-badge"><div class="meeting-stage-number">Current journey position</div><div class="meeting-stage-name">Stage ${stage.stage_order || ''} · ${escapeComparisonHtml(stage.name || '')}</div><div class="meeting-stage-progress">${current.complete} of ${current.total} stage actions complete</div></div></section>
-  <div class="meeting-mode-grid"><div class="meeting-mode-column"><section class="meeting-card"><div class="meeting-card-head"><div class="meeting-card-title">Actions to progress today</div><div class="meeting-card-count">${outstanding.length} outstanding</div></div><div class="meeting-card-body"><div class="meeting-action-list">${actionHtml}</div></div></section>
+  <main class="meeting-mode-canvas" style="--meeting-stage-colour:${escapeComparisonHtml(stage.colour || '#C9A84C')}"><section class="meeting-mode-hero"><div><div class="meeting-mode-kicker">Client meeting · ${escapeComparisonHtml(client.name)}</div><div class="meeting-mode-title">${isExistingMeeting ? 'Saved advisory session' : 'Focused advisory session'}</div><div class="meeting-mode-sub">${contextCopy}</div></div><div class="meeting-stage-badge"><div class="meeting-stage-number">${contextLabel}</div><div class="meeting-stage-name">Stage ${stage.stage_order || ''} · ${escapeComparisonHtml(stage.name || '')}</div><div class="meeting-stage-progress">${stageProgress.complete || 0} of ${stageProgress.total || 0} stage actions complete</div></div></section>
+  <div class="meeting-mode-grid"><div class="meeting-mode-column"><section class="meeting-card"><div class="meeting-card-head"><div class="meeting-card-title">${isExistingMeeting ? 'Actions outstanding at this meeting' : 'Actions to progress today'}</div><div class="meeting-card-count">${outstanding.length} outstanding</div></div><div class="meeting-card-body"><div class="meeting-action-list">${actionHtml}</div></div></section>
   <section class="meeting-card"><div class="meeting-card-head"><div class="meeting-card-title">Decisions required</div><div class="meeting-card-count">${unlocked.length} unlocked</div></div><div class="meeting-card-body">${unlockedHtml}</div></section>
   <section class="meeting-card"><div class="meeting-card-head"><div class="meeting-card-title">What these actions unlock next</div><div class="meeting-card-count">Forward view</div></div><div class="meeting-card-body">${lockedHtml}</div></section>
-  <section class="meeting-card"><div class="meeting-card-head"><div class="meeting-card-title">Advisor recommendation</div><div class="meeting-card-count">Current stage</div></div><div class="meeting-card-body"><div class="meeting-recommendation">${recommendation ? meetingEscapeLines(recommendation) : 'No stage recommendation has been recorded yet. Exit Meeting Mode to add one to the framework.'}</div></div></section></div>
+  <section class="meeting-card"><div class="meeting-card-head"><div class="meeting-card-title">Advisor recommendation</div><div class="meeting-card-count">${isExistingMeeting ? 'At time of meeting' : 'Current stage'}</div></div><div class="meeting-card-body"><div class="meeting-recommendation">${recommendation ? meetingEscapeLines(recommendation) : 'No stage recommendation had been recorded.'}</div></div></section></div>
   <div class="meeting-mode-column"><section class="meeting-card"><div class="meeting-card-head"><div class="meeting-card-title">Meeting record</div><div class="meeting-card-count">Internal working notes</div></div><div class="meeting-card-body"><div class="meeting-meta-grid"><div class="meeting-field"><label>Advisor</label><input id="meeting-advisor" value="${escapeComparisonHtml(rememberedAdvisor)}" placeholder="Advisor name"></div><div class="meeting-field"><label>Meeting date</label><input id="meeting-date" type="date" value="${escapeComparisonHtml(latest.id ? (latest.meeting_date || today) : today)}"></div></div><div class="meeting-field"><label>Objective for this meeting</label><textarea id="meeting-objective" placeholder="What must this meeting achieve?">${escapeComparisonHtml(latest.id ? (latest.meeting_objective || '') : '')}</textarea></div><div class="meeting-field"><label>Discussion notes</label><textarea class="tall" id="meeting-notes" placeholder="Capture the important context, challenge and client response…">${escapeComparisonHtml(latest.id ? (latest.meeting_notes || '') : '')}</textarea></div></div></section>
-  <section class="meeting-card"><div class="meeting-card-head"><div class="meeting-card-title">Previous commitments</div><div class="meeting-card-count">Last meeting</div></div><div class="meeting-card-body"><div class="meeting-prior">${meetingEscapeLines(priorCommitments)}</div></div></section>
+  <section class="meeting-card"><div class="meeting-card-head"><div class="meeting-card-title">Previous commitments</div><div class="meeting-card-count">Prior meeting</div></div><div class="meeting-card-body"><div class="meeting-prior">${meetingEscapeLines(priorCommitments)}</div></div></section>
   <section class="meeting-card"><div class="meeting-card-head"><div class="meeting-card-title">Commitments agreed today</div><div class="meeting-card-count">Client-facing outcome</div></div><div class="meeting-card-body"><div class="meeting-field"><label>Commitments</label><textarea id="meeting-commitments" placeholder="What has the business owner committed to doing or deciding?">${escapeComparisonHtml(latest.id ? (latest.commitments || '') : '')}</textarea></div><div class="meeting-field"><label>Next actions and meeting focus</label><textarea id="meeting-next-actions" placeholder="Record owners, actions and what should be reviewed next time…">${escapeComparisonHtml(latest.id ? (latest.next_actions || '') : '')}</textarea></div><div class="meeting-status" id="meeting-save-status"></div></div></section></div></div></main>`;
 }
-
 function openMeetingMode(meetingId = null) {
   if (!currentJourneyData) return;
   const overlay = document.getElementById('meetingModeOverlay');
@@ -2119,7 +2153,9 @@ async function saveMeetingMode(status='draft') {
     commitments: document.getElementById('meeting-commitments')?.value.trim() || '',
     next_actions: document.getElementById('meeting-next-actions')?.value.trim() || '',
     status,
-    snapshot: buildMeetingSnapshot(),
+    snapshot: activeJourneyMeetingId
+      ? ((currentJourneyData.meetings || []).find(row => String(row.id) === String(activeJourneyMeetingId))?.snapshot || buildMeetingSnapshot())
+      : buildMeetingSnapshot(),
     updated_at: new Date().toISOString()
   };
   const statusEl = document.getElementById('meeting-save-status');

@@ -2391,6 +2391,17 @@ button.combined-position-card:hover{border-color:#3a6071;background:linear-gradi
 @media(max-width:980px){.combined-position-v2{grid-template-columns:1fr 1fr}.combined-focus-v2{grid-column:1/-1}}@media(max-width:640px){.combined-position-v2{grid-template-columns:1fr}.combined-focus-v2{grid-column:auto}.combined-owner-position-row{grid-template-columns:1fr}.combined-owner-position-row em{margin-top:2px}}
 </style>
 
+
+<style id="workspace-streamline-v312">
+  .workspace-activity-v312{position:fixed;right:22px;bottom:22px;z-index:12050;display:flex;align-items:center;gap:9px;padding:10px 14px;border:1px solid rgba(82,126,156,.5);border-radius:999px;background:rgba(7,24,36,.94);box-shadow:0 14px 34px rgba(0,0,0,.28);color:#d9e6ef;font-size:12px;font-weight:700;letter-spacing:.01em;opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .16s ease,transform .16s ease;}
+  .workspace-activity-v312.visible{opacity:1;transform:translateY(0)}
+  .workspace-activity-v312.success{border-color:rgba(174,197,75,.55);color:#dfeea5}
+  .workspace-activity-v312.error{border-color:rgba(230,111,80,.62);color:#ffd0c3}
+  .workspace-activity-v312 .dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 0 4px rgba(255,255,255,.045)}
+  .workspace-activity-v312.busy .dot{animation:workspacePulseV312 1s ease-in-out infinite}
+  @keyframes workspacePulseV312{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+  .journey-stage[data-stage-id]{scroll-margin-top:18px}
+</style>
 </head>
 <body>
  
@@ -2441,7 +2452,7 @@ button.combined-position-card:hover{border-color:#3a6071;background:linear-gradi
   </div>
 </div>
  
-<div class="decision-library-backdrop" id="decisionLibraryBackdrop" onclick="toggleDecisionLibrary(false)"></div>
+<div class="decision-library-backdrop" id="decisionLibraryBackdrop"></div>
 <aside class="decision-library-drawer" id="decisionLibraryDrawer" aria-hidden="true">
   <div class="decision-library-drawer-head">
     <div>
@@ -2603,6 +2614,8 @@ const sb = window.supabase.createClient(
 );
  
 let currentIdx = 0;
+let currentWorkspaceTab = 'journey';
+let currentFinanceClientId = null;
 let modalMode = 'add';
 let activeBriefingId = null;
 
@@ -2900,6 +2913,8 @@ async function loadClient() {
     }
  
     const c = CLIENTS[currentIdx];
+    if(String(currentJourneyData?._clientId||'')!==String(c.id)){currentJourneyData=null;currentOwnerJourneyView='all';currentJourneyView='combined';}
+    if(String(currentFinanceClientId||'')!==String(c.id)){currentFinanceClientId=null;currentFinanceRows=[];currentFinanceInsights=[];currentFinanceTargets=[];}
  
     renderProfile(c);
     resetMain();
@@ -3264,11 +3279,10 @@ async function generateBrief() {
   if (!apiKey) { alert('Please enter your Anthropic API key at the top.'); return; }
   const c = CLIENTS[currentIdx];
  
-  document.getElementById('mainPanel').innerHTML = `
-    <div class="loading-state">
-      <div class="spinner"></div>
-      <div class="loading-text">Searching for intelligence on ${c.name}…</div>
-    </div>`;
+  currentWorkspaceTab='intelligence';
+  const intelligenceBody=document.getElementById('intelligenceBriefBody');
+  if(intelligenceBody)intelligenceBody.innerHTML=`<div class="loading-state" style="height:300px"><div class="spinner"></div><div class="loading-text">Searching for intelligence on ${escapeComparisonHtml(c.name)}…</div></div>`;
+  setWorkspaceActivityV312('Generating intelligence…','busy');
  
   const prompt = `
 You are an intelligence analyst for a UK business advisory firm.
@@ -3418,15 +3432,17 @@ currentSession.clientUpdate = null;
 const history = await loadBriefingHistory(c.id);
 activeBriefingId = currentRow.id;
 renderHistory(history, activeBriefingId);
-renderBrief(brief, c.name, currentRow.created_at);
+const body=document.getElementById('intelligenceBriefBody');if(body)body.innerHTML=intelligenceBriefBody(brief,c.name,currentRow.created_at);
+const title=document.getElementById('intelligenceBriefTitle');if(title)title.textContent='Latest Brief';
+const subtitle=document.getElementById('intelligenceBriefSubtitle');if(subtitle)subtitle.textContent=`Generated ${new Date(currentRow.created_at).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})}`;
+const comparisonPanel=document.getElementById('tab-comparison');if(comparisonPanel)comparisonPanel.innerHTML=previousRow?renderComparisonPanel(comparison):'<div class="comparison-empty compact"><div class="comparison-empty-title">No previous brief yet</div><div class="comparison-empty-copy">Once a second brief is generated, this panel will summarise what has changed since the prior briefing.</div></div>';
+clearWorkspaceActivityV312('Intelligence brief updated','success');
  
 } catch(err) {
-    document.getElementById('mainPanel').innerHTML =
-        `<div style="padding:32px">
-            <div class="error-box">
-                Error: ${err.message}. Check your API key and try again.
-            </div>
-        </div>`;
+    console.error(err);
+    const body=document.getElementById('intelligenceBriefBody');
+    if(body)body.innerHTML=`<div class="error-box">Error: ${escapeComparisonHtml(err.message)}. Check your API key and try again.</div>`;
+    clearWorkspaceActivityV312('Intelligence generation failed','error');
 }
 }
  
@@ -4259,32 +4275,79 @@ function renderClientJourney(data, client) {
         : (triggerIds.length ? 'All required actions are complete.' : 'No prerequisite actions are required — this Decision Moment was selected deliberately from the firm library.');
       const milestoneComments = milestoneCommentsById.get(String(milestone.id)) || [];
       const lockedCopy = milestone.locked_teaser || 'Complete the required actions to reveal the next strategic decision.';
-      const reveal = state !== 'locked' ? `<div class="journey-milestone-reveal">
-        ${state==='reopened'?`<div class="journey-reopened-alert"><strong>Underlying conditions changed.</strong><span>${escapeComparisonHtml(record.reopened_reason||'One or more ongoing dependencies are no longer complete. A fresh decision or reaffirmation is required.')}</span></div>`:''}${milestone.why_it_matters ? `<div class="journey-milestone-why"><strong>Why this matters:</strong> ${escapeComparisonHtml(milestone.why_it_matters)}</div>` : ''}
-        <div class="journey-milestone-decision"><strong>Decision moment</strong>${escapeComparisonHtml(milestone.decision_prompt || 'Record the business owner decision that this milestone enables.')}</div>
-        <div class="journey-milestone-form">
-          <div class="journey-milestone-field"><label>Status</label><select id="milestone-status-${milestone.id}"><option value="unlocked" ${state === 'unlocked' ? 'selected' : ''}>Unlocked</option><option value="reopened" ${state === 'reopened' ? 'selected' : ''}>Reopened</option><option value="achieved" ${state === 'achieved' ? 'selected' : ''}>Achieved</option><option value="deferred" ${record.status === 'deferred' ? 'selected' : ''}>Deferred</option></select></div>
-          <div class="journey-milestone-field"><label>Decision owner</label><input id="milestone-owner-${milestone.id}" value="${escapeComparisonHtml(record.decision_owner || '')}" placeholder="Business owner or lead"></div>
-          <div class="journey-milestone-field"><label>Decision date</label><input id="milestone-date-${milestone.id}" type="date" value="${record.decision_date || ''}"></div>
-          <div class="journey-milestone-field"><label>Target date</label><input id="milestone-target-${milestone.id}" type="date" value="${record.target_date || ''}"></div>
-          <div class="journey-milestone-field decision-text"><label>Decision recorded</label><textarea id="milestone-decision-${milestone.id}" placeholder="Record the decision, commitment or agreed next move…">${escapeComparisonHtml(record.decision_text || '')}</textarea></div>
-          <div class="journey-milestone-field decision-text"><label>Circumstances at the time</label><textarea id="milestone-circumstances-${milestone.id}" placeholder="What was happening in the business when this decision was made?">${escapeComparisonHtml(record.circumstances || '')}</textarea></div>
-          <div class="journey-milestone-field decision-text"><label>Advisor rationale</label><textarea id="milestone-rationale-${milestone.id}" placeholder="Why was this decision appropriate?">${escapeComparisonHtml(record.advisor_rationale || '')}</textarea></div>
-          <div class="journey-milestone-field decision-text"><label>Risks considered</label><textarea id="milestone-risks-${milestone.id}" placeholder="What risks or constraints were considered?">${escapeComparisonHtml(record.risks_considered || '')}</textarea></div>
-          <div class="journey-milestone-field decision-text"><label>Expected outcome</label><textarea id="milestone-outcome-${milestone.id}" placeholder="What should change as a result?">${escapeComparisonHtml(record.expected_outcome || '')}</textarea></div>
-          <div class="journey-milestone-field"><label>Review date</label><input id="milestone-review-${milestone.id}" type="date" value="${record.review_date || ''}"></div>
-        </div><div class="journey-milestone-save"><button type="button" onclick="saveJourneyMilestone('${milestone.id}')">Save decision moment</button></div>
-      </div>` : `<div class="journey-milestone-reveal"><div class="journey-milestone-locked-message">🔒 The decision prompt will be revealed once the named prerequisite actions are complete.</div></div>`;
+      const masterMeta = decisionMomentMasterMeta(milestone,'Business');
+      const meaningfulWhy = decisionMomentMeaningfulWhy(milestone);
+      const stateLabel = decisionMomentStateLabel(state);
+      const meetingReady = state === 'unlocked' || state === 'reopened';
+      const sourceLabel = masterMeta ? `${masterMeta.category} · ${masterMeta.source || 'Firm library'}` : (milestone.scope_type === 'client' ? 'Client-specific Decision Moment' : 'Journey Decision Moment');
+      const requirementStatus = triggerIds.length
+        ? `${triggerComplete}/${triggerIds.length} prerequisite${triggerIds.length===1?'':'s'} complete`
+        : 'Advisor selected · no prerequisites';
+      const reveal = state !== 'locked' ? `<div class="journey-milestone-reveal decision-workspace-v39">
+        ${state==='reopened'?`<div class="journey-reopened-alert decision-reopened-v39"><strong>Decision needs another look.</strong><span>${escapeComparisonHtml(record.reopened_reason||'The underlying circumstances have changed. Reconfirm the decision or agree a new direction.')}</span></div>`:''}
+        <div class="decision-v39-top">
+          <section class="decision-v39-prompt">
+            <div class="decision-v39-section-label">Decision to make</div>
+            <div class="decision-v39-prompt-text">${escapeComparisonHtml(milestone.decision_prompt || milestone.title || 'Record the decision that now needs to be made.')}</div>
+            ${meaningfulWhy?`<div class="decision-v39-why"><strong>Why it matters</strong><span>${escapeComparisonHtml(meaningfulWhy)}</span></div>`:''}
+          </section>
+          <aside class="decision-v39-workflow ${meetingReady?'meeting-ready':''}">
+            <div class="decision-v39-section-label">Workflow</div>
+            <div class="decision-v39-workflow-row"><span>Meeting</span><strong>${meetingReady?'Included automatically':'Not currently due'}</strong></div>
+            <div class="decision-v39-workflow-row"><span>Source</span><strong>${escapeComparisonHtml(masterMeta ? 'Firm library' : (milestone.scope_type==='client'?'Client-specific':'Journey framework'))}</strong></div>
+            <div class="decision-v39-workflow-row"><span>Stage</span><strong>Stage ${stage.stage_order || index + 1}</strong></div>
+            ${meetingReady?`<button class="decision-v39-meeting-btn" type="button" onclick="openDecisionMomentInMeeting('${milestone.id}')">Open in Meeting →</button>`:''}
+          </aside>
+        </div>
+        <section class="decision-v39-record">
+          <div class="decision-v39-record-head">
+            <div><div class="decision-v39-section-label">Decision record</div><h4>${state==='achieved'?'Recorded outcome':'Capture the agreed outcome'}</h4><p>${state==='achieved'?'The decision remains editable and is preserved in the Decision Moment Library history.':'Keep the record concise. Supporting advisor context can be expanded only when it adds value.'}</p></div>
+            <span class="decision-v39-state ${state}">${escapeComparisonHtml(stateLabel)}</span>
+          </div>
+          <div class="decision-v39-core-grid">
+            <div class="journey-milestone-field"><label>Status</label><select id="milestone-status-${milestone.id}"><option value="unlocked" ${state === 'unlocked' ? 'selected' : ''}>Open</option><option value="reopened" ${state === 'reopened' ? 'selected' : ''}>Reopened</option><option value="achieved" ${state === 'achieved' ? 'selected' : ''}>Achieved</option><option value="deferred" ${record.status === 'deferred' ? 'selected' : ''}>Deferred</option></select></div>
+            <div class="journey-milestone-field"><label>Decision owner</label><input id="milestone-owner-${milestone.id}" value="${escapeComparisonHtml(record.decision_owner || '')}" placeholder="Who owns the decision?"></div>
+            <div class="journey-milestone-field"><label>Target date</label><input id="milestone-target-${milestone.id}" type="date" value="${record.target_date || ''}"></div>
+            <div class="journey-milestone-field"><label>Decision date</label><input id="milestone-date-${milestone.id}" type="date" value="${record.decision_date || ''}"></div>
+            <div class="journey-milestone-field decision-text decision-v39-outcome"><label>Decision / agreed direction</label><textarea id="milestone-decision-${milestone.id}" placeholder="What was agreed? Keep this clear enough to refer back to in the next meeting.">${escapeComparisonHtml(record.decision_text || '')}</textarea></div>
+          </div>
+          <div class="decision-v39-record-actions">
+            <button class="decision-v39-secondary" type="button" onclick="saveJourneyMilestone('${milestone.id}')">Save changes</button>
+            ${state!=='achieved'?`<button class="decision-v39-primary" type="button" onclick="saveJourneyMilestone('${milestone.id}','achieved')">Save & mark achieved</button>`:`<button class="decision-v39-primary" type="button" onclick="saveJourneyMilestone('${milestone.id}')">Update decision record</button>`}
+          </div>
+        </section>
+        <details class="decision-v39-context" ${record.circumstances||record.advisor_rationale||record.risks_considered||record.expected_outcome||record.review_date?'open':''}>
+          <summary><span>Supporting advisor context</span><small>Circumstances, rationale, risks and review</small></summary>
+          <div class="decision-v39-context-grid">
+            <div class="journey-milestone-field decision-text"><label>Circumstances at the time</label><textarea id="milestone-circumstances-${milestone.id}" placeholder="What was happening in the business when this decision was made?">${escapeComparisonHtml(record.circumstances || '')}</textarea></div>
+            <div class="journey-milestone-field decision-text"><label>Advisor rationale</label><textarea id="milestone-rationale-${milestone.id}" placeholder="Why was this direction appropriate?">${escapeComparisonHtml(record.advisor_rationale || '')}</textarea></div>
+            <div class="journey-milestone-field decision-text"><label>Risks considered</label><textarea id="milestone-risks-${milestone.id}" placeholder="What constraints, trade-offs or risks were considered?">${escapeComparisonHtml(record.risks_considered || '')}</textarea></div>
+            <div class="journey-milestone-field decision-text"><label>Expected outcome</label><textarea id="milestone-outcome-${milestone.id}" placeholder="What should change as a result?">${escapeComparisonHtml(record.expected_outcome || '')}</textarea></div>
+            <div class="journey-milestone-field decision-v39-review"><label>Review date</label><input id="milestone-review-${milestone.id}" type="date" value="${record.review_date || ''}"></div>
+          </div>
+        </details>
+      </div>` : `<div class="journey-milestone-reveal decision-workspace-v39 locked">
+        <div class="decision-v39-locked-panel"><div><span>Not ready for decision yet</span><strong>${escapeComparisonHtml(milestone.decision_prompt || milestone.title || 'Next Decision Moment')}</strong><p>${escapeComparisonHtml(requirementText)}</p></div><div class="decision-v39-lock-progress"><b>${triggerComplete}/${triggerIds.length}</b><span>prerequisites complete</span></div></div>
+      </div>`;
       const collapsed=localStorage.getItem(`oldfield-decision-collapsed-${milestone.id}`)==='1';
-      return `<div class="journey-milestone ${state} ${collapsed?'collapsed':''}" data-milestone-id="${milestone.id}">
-        <div class="journey-milestone-main"><div class="journey-milestone-icon" style="--decision-progress:${progressPct}%"><span class="journey-milestone-icon-symbol">${icon}</span></div><div><div class="journey-milestone-kicker">${kicker}</div><div class="journey-milestone-title">${escapeComparisonHtml(state === 'locked' ? (milestone.title || 'Next decision moment') : milestone.title)}</div><div class="journey-milestone-copy">${escapeComparisonHtml(state === 'locked' ? lockedCopy : (milestone.achievement_text || lockedCopy))}</div><div class="journey-milestone-requirements"><strong>${state === 'locked' ? 'To unlock:' : 'Requirements:'}</strong> ${escapeComparisonHtml(requirementText)}</div><div class="journey-milestone-progress"><div class="journey-milestone-progress-bar"><div class="journey-milestone-progress-fill" style="width:${progressPct}%;background:var(--stage-colour)"></div></div><div class="journey-milestone-progress-text">${progressPct}% complete</div></div></div><div class="journey-milestone-actions">${milestone.scope_type !== 'client' ? `<button class="journey-milestone-action localise" type="button" title="Create a tailored copy for this client" onclick="localizeJourneyMilestone('${milestone.id}')">⇄</button>` : ''}<button class="journey-milestone-action" type="button" title="Edit decision moment" onclick="editJourneyMilestone('${milestone.id}')">✎</button><button class="journey-milestone-action remove" type="button" title="Archive decision moment" onclick="removeJourneyMilestone('${milestone.id}')">✕</button></div></div>
+      return `<div class="journey-milestone ${state} decision-moment-v39 ${collapsed?'collapsed':''}" data-milestone-id="${milestone.id}">
+        <div class="journey-milestone-main decision-v39-main">
+          <div class="journey-milestone-icon decision-v39-icon" style="--decision-progress:${progressPct}%"><span class="journey-milestone-icon-symbol">${icon}</span></div>
+          <div class="decision-v39-summary">
+            <div class="decision-v39-summary-top"><div><div class="journey-milestone-kicker">${escapeComparisonHtml(stateLabel)}</div><div class="journey-milestone-title">${escapeComparisonHtml(milestone.title || 'Decision Moment')}</div></div><span class="decision-v39-state ${state}">${escapeComparisonHtml(stateLabel)}</span></div>
+            <div class="decision-v39-meta"><span>${escapeComparisonHtml(sourceLabel)}</span><span>Stage ${stage.stage_order || index + 1}</span>${meetingReady?'<span class="meeting">Next meeting agenda</span>':''}</div>
+            <div class="decision-v39-requirement-line"><strong>${escapeComparisonHtml(requirementStatus)}</strong><span>${escapeComparisonHtml(requirementText)}</span></div>
+            ${triggerIds.length?`<div class="journey-milestone-progress decision-v39-progress"><div class="journey-milestone-progress-bar"><div class="journey-milestone-progress-fill" style="width:${progressPct}%;background:var(--stage-colour)"></div></div><div class="journey-milestone-progress-text">${progressPct}%</div></div>`:''}
+          </div>
+          <div class="journey-milestone-actions decision-v39-header-actions">${milestone.scope_type !== 'client' ? `<button class="journey-milestone-action localise" type="button" title="Create a tailored copy for this client" onclick="localizeJourneyMilestone('${milestone.id}')">⇄</button><button class="journey-milestone-action" type="button" title="Edit Decision Moment template" onclick="editJourneyMilestone('${milestone.id}')">✎</button>` : ''}<button class="journey-milestone-action remove" type="button" title="Remove this Decision Moment from the client Journey" onclick="removeJourneyMilestone('${milestone.id}')">✕</button></div>
+        </div>
         ${reveal}
-        <div class="journey-milestone-comments no-export"><button class="journey-milestone-comments-toggle" type="button" onclick="toggleJourneyMilestoneComments('${milestone.id}')">💬 Internal decision moment comments${milestoneComments.length ? ` (${milestoneComments.length})` : ''}</button><div class="journey-milestone-comments-panel"><div class="journey-comment-thread">${renderCommentCards(milestoneComments)}</div><div class="journey-milestone-comment-form"><input id="milestone-advisor-${milestone.id}" value="${escapeComparisonHtml(rememberedAdvisor)}" placeholder="Advisor name"><textarea id="milestone-comment-${milestone.id}" placeholder="Add internal context or follow-up notes…"></textarea><button type="button" onclick="addJourneyMilestoneComment('${milestone.id}')">Add Comment</button></div><div class="journey-internal-note">Internal only and excluded from client-facing exports.</div></div></div>
-        <div class="journey-milestone-footer no-export"><button class="journey-milestone-action journey-milestone-collapse" type="button" title="${collapsed?'Expand':'Collapse'} decision moment" aria-label="${collapsed?'Expand':'Collapse'} decision moment" onclick="toggleJourneyMilestoneCollapse('${milestone.id}')">${collapsed?'⌄':'⌃'}</button>${milestone.scope_type === 'client' ? '<button class="journey-milestone-action journey-scope-pill local" type="button" title="Client-specific Decision Moment" aria-label="Client-specific Decision Moment" tabindex="-1">C</button>' : '<button class="journey-milestone-action journey-scope-pill" type="button" title="Global Decision Moment template" aria-label="Global Decision Moment template" tabindex="-1">G</button>'}</div>
+        <div class="journey-milestone-comments no-export decision-v39-comments"><button class="journey-milestone-comments-toggle" type="button" onclick="toggleJourneyMilestoneComments('${milestone.id}')">Internal notes${milestoneComments.length ? ` · ${milestoneComments.length}` : ''}</button><div class="journey-milestone-comments-panel"><div class="journey-comment-thread">${renderCommentCards(milestoneComments)}</div><div class="journey-milestone-comment-form"><input id="milestone-advisor-${milestone.id}" value="${escapeComparisonHtml(rememberedAdvisor)}" placeholder="Advisor name"><textarea id="milestone-comment-${milestone.id}" placeholder="Add internal context or follow-up notes…"></textarea><button type="button" onclick="addJourneyMilestoneComment('${milestone.id}')">Add Note</button></div><div class="journey-internal-note">Internal only and excluded from client-facing outputs.</div></div></div>
+        <div class="journey-milestone-footer no-export decision-v39-footer"><span>${escapeComparisonHtml(masterMeta ? 'Firm library selection' : (milestone.scope_type==='client'?'Client-specific':'Journey framework'))}</span><button class="journey-milestone-action journey-milestone-collapse" type="button" title="${collapsed?'Expand':'Collapse'} Decision Moment" aria-label="${collapsed?'Expand':'Collapse'} Decision Moment" onclick="toggleJourneyMilestoneCollapse('${milestone.id}')">${collapsed?'⌄':'⌃'}</button></div>
       </div>`;
     }).join('');
 
-    return `<section class="journey-stage ${String(stage.id)===currentBusinessStageId?'master-current-stage':''}" style="--stage-colour:${escapeComparisonHtml(stage.colour || '#C9A84C')}"><div class="journey-stage-header" onclick="this.parentElement.classList.toggle('master-current-stage')"><div class="journey-stage-rail"></div><div class="journey-stage-heading"><div class="journey-stage-number">Stage ${stage.stage_order || index + 1}</div><div class="journey-stage-name">${escapeComparisonHtml(stage.name || `Stage ${index + 1}`)}</div></div><div class="journey-stage-score">${keyAreasComplete}/${sectionDefs.length} key areas · ${completedCount}/${stageItems.length} points</div></div>
+    return `<section class="journey-stage ${String(stage.id)===currentBusinessStageId?'master-current-stage':''}" data-stage-id="${stage.id}" style="--stage-colour:${escapeComparisonHtml(stage.colour || '#C9A84C')}"><div class="journey-stage-header" onclick="this.parentElement.classList.toggle('master-current-stage')"><div class="journey-stage-rail"></div><div class="journey-stage-heading"><div class="journey-stage-number">Stage ${stage.stage_order || index + 1}</div><div class="journey-stage-name">${escapeComparisonHtml(stage.name || `Stage ${index + 1}`)}</div></div><div class="journey-stage-score">${keyAreasComplete}/${sectionDefs.length} key areas · ${completedCount}/${stageItems.length} points</div></div>
       <div class="journey-recommendation"><div class="journey-recommendation-label"><div><span class="journey-recommendation-title">Advisor Notes</span><small class="journey-recommendation-helper">Record only the recommended next move or guidance for this stage.</small></div><span class="journey-save-status" id="journey-rec-status-${stage.id}"></span></div><textarea placeholder="Record the recommended next move for this stage…" onblur="saveJourneyRecommendation('${stage.id}', this.value)">${escapeComparisonHtml(recommendation)}</textarea></div>
       <div class="journey-group-label">Work To Complete</div><div class="journey-list journey-sectioned-list">${itemsHtml}</div>
       <div class="journey-group-label">Decisions</div><div class="journey-milestones"><div class="journey-milestones-head"><div class="journey-milestones-label">Decision moments</div><button class="journey-add-milestone" type="button" onclick="addJourneyMilestone('${stage.id}')">+ Add decision moment</button></div>${milestonesHtml || '<div class="journey-empty">No decision moments have been configured for this stage yet.</div>'}</div>
@@ -5264,8 +5327,54 @@ async function loadBriefingById(id) {
   renderHistory(currentBriefingHistory, activeBriefingId);
 }
  
-document.getElementById('clientModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
-document.getElementById('confirmOverlay').addEventListener('click',function(e){if(e.target===this)closeConfirm();});
+/* v3.8 — safe modal dismissal.
+   A modal only closes when the pointer both starts AND ends on the backdrop without a drag.
+   This prevents text-selection drags, scrollbar drags and draggable-dialog moves from being
+   mistaken for an intentional click outside the window. */
+const safeDismissBindings = new WeakSet();
+function bindSafeBackdropDismiss(surface, closeFn, options={}) {
+  if (!surface || safeDismissBindings.has(surface)) return;
+  safeDismissBindings.add(surface);
+  const isDialog = options.dialog === true || surface.tagName === 'DIALOG';
+  const movementTolerance = Number(options.movementTolerance ?? 6);
+  let press = null;
+
+  const isBackdropPoint = event => {
+    if (isDialog) {
+      const rect = surface.getBoundingClientRect();
+      return event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
+    }
+    return event.target === surface;
+  };
+
+  surface.addEventListener('pointerdown', event => {
+    press = {
+      pointerId: event.pointerId,
+      startedOnBackdrop: isBackdropPoint(event),
+      x: event.clientX,
+      y: event.clientY,
+      moved: false
+    };
+  }, true);
+
+  surface.addEventListener('pointermove', event => {
+    if (!press || press.pointerId !== event.pointerId) return;
+    if (Math.hypot(event.clientX - press.x, event.clientY - press.y) > movementTolerance) press.moved = true;
+  }, true);
+
+  surface.addEventListener('pointerup', event => {
+    if (!press || press.pointerId !== event.pointerId) return;
+    const shouldClose = press.startedOnBackdrop && isBackdropPoint(event) && !press.moved;
+    press = null;
+    if (shouldClose) closeFn(event);
+  }, true);
+
+  surface.addEventListener('pointercancel', () => { press = null; }, true);
+}
+
+bindSafeBackdropDismiss(document.getElementById('clientModal'), closeModal);
+bindSafeBackdropDismiss(document.getElementById('confirmOverlay'), closeConfirm);
+bindSafeBackdropDismiss(document.getElementById('decisionLibraryBackdrop'), () => toggleDecisionLibrary(false));
 
 
 document.getElementById('briefingHistory').addEventListener('click', (e) => {
@@ -5435,15 +5544,21 @@ async function openLibraryMeeting(clientId, meetingId) {
 }
 
 /* ================= OWNER JOURNEY — PHASE 1 ================= */
+let currentJourneyView = 'combined';
 let currentOwnerJourneyView = 'all';
 const ownerRungOpenByOwner = {};
 let editingOwnerId = null;
 
 function switchJourneyView(view, button) {
+  currentJourneyView = view || 'combined';
   document.querySelectorAll('.journey-view-btn').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.journey-subview').forEach(panel => panel.classList.remove('active'));
-  button?.classList.add('active');
-  document.getElementById(`journey-view-${view}`)?.classList.add('active');
+  const resolvedButton = button || [...document.querySelectorAll('.journey-view-btn')].find(btn => {
+    const text=btn.textContent.trim().toLowerCase();
+    return (currentJourneyView==='combined'&&text==='combined')||(currentJourneyView==='business'&&text==='business')||(currentJourneyView==='owners'&&text==='owners')||(currentJourneyView==='roadmap'&&text.includes('road map'))||(currentJourneyView==='meetings'&&text==='meetings');
+  });
+  resolvedButton?.classList.add('active');
+  document.getElementById(`journey-view-${currentJourneyView}`)?.classList.add('active');
 }
 
 function getOverallAlignmentStatus(data) {
@@ -5485,12 +5600,13 @@ function renderOwnerJourney(data, client) {
 }
 
 function selectOwnerJourney(ownerId, button) {
-  currentOwnerJourneyView = ownerId;
+  currentOwnerJourneyView = ownerId || 'all';
   document.querySelectorAll('.owner-selector-btn').forEach(btn=>btn.classList.remove('active'));
-  button?.classList.add('active');
+  const resolvedButton=button||document.querySelector(`.owner-selector-btn[data-owner-view="${CSS.escape(String(currentOwnerJourneyView))}"]`);
+  resolvedButton?.classList.add('active');
   const target=document.getElementById('ownerJourneyContent');
   if(!target||!currentJourneyData)return;
-  target.innerHTML=ownerId==='all' ? renderAllOwnersComparison(currentJourneyData) : renderIndividualOwnerJourney(currentJourneyData, ownerId);
+  target.innerHTML=currentOwnerJourneyView==='all' ? renderAllOwnersComparison(currentJourneyData) : renderIndividualOwnerJourney(currentJourneyData, currentOwnerJourneyView);
 }
 
 function alignmentStatusLabel(status) {
@@ -5698,9 +5814,53 @@ async function deleteOwnerComment(commentId){const record=currentJourneyData.own
 
 
 /* Phase 3B — Owner rung progression */
-async function loadClientJourneyFramework() {
+let journeyRefreshSequenceV312=0;
+function setWorkspaceActivityV312(message,type='busy',linger=0){
+  let el=document.getElementById('workspaceActivityV312');
+  if(!el){el=document.createElement('div');el.id='workspaceActivityV312';el.className='workspace-activity-v312';el.innerHTML='<span class="dot"></span><span class="text"></span>';document.body.appendChild(el);}
+  clearTimeout(el._hideTimer);el.className=`workspace-activity-v312 ${type} visible`;const text=el.querySelector('.text');if(text)text.textContent=message||'';
+  if(linger){el._hideTimer=setTimeout(()=>el.classList.remove('visible'),linger);}
+}
+function clearWorkspaceActivityV312(message='',type='success'){
+  const el=document.getElementById('workspaceActivityV312');if(!el)return;clearTimeout(el._hideTimer);
+  if(message){setWorkspaceActivityV312(message,type,1100);}else{el.classList.remove('visible');}
+}
+function captureJourneyUiStateV312(){
+  const panel=document.getElementById('tab-journey');
+  const activeButton=[...document.querySelectorAll('.journey-view-btn.active')][0];
+  let view=currentJourneyView||'combined';
+  if(activeButton){const t=activeButton.textContent.trim().toLowerCase();view=t==='business'?'business':t==='owners'?'owners':t.includes('road map')?'roadmap':t==='meetings'?'meetings':'combined';}
+  return {
+    view,ownerView:currentOwnerJourneyView||'all',scrollY:window.scrollY,
+    expandedBusiness:[...(panel?.querySelectorAll('.journey-stage.master-current-stage')||[])].map(el=>String(el.dataset.stageId||'')).filter(Boolean),
+    openItemComments:[...(panel?.querySelectorAll('.journey-item.comments-open')||[])].map(el=>String(el.dataset.itemId||'')),
+    openMilestoneComments:[...(panel?.querySelectorAll('.journey-milestone.comments-open')||[])].map(el=>String(el.dataset.milestoneId||''))
+  };
+}
+function restoreJourneyUiStateV312(state){
+  if(!state)return;
+  currentJourneyView=state.view||currentJourneyView||'combined';
+  switchJourneyView(currentJourneyView);
+  if(currentJourneyView==='owners'){
+    const ownerId=state.ownerView||currentOwnerJourneyView||'all';
+    if(ownerId==='all'||(currentJourneyData?.owners||[]).some(o=>String(o.id)===String(ownerId)))selectOwnerJourney(ownerId);
+    else selectOwnerJourney('all');
+  }else{currentOwnerJourneyView=state.ownerView||currentOwnerJourneyView||'all';}
+  if(Array.isArray(state.expandedBusiness)){
+    document.querySelectorAll('.journey-stage[data-stage-id]').forEach(el=>el.classList.toggle('master-current-stage',state.expandedBusiness.includes(String(el.dataset.stageId))));
+  }
+  (state.openItemComments||[]).forEach(id=>document.querySelector(`.journey-item[data-item-id="${CSS.escape(id)}"]`)?.classList.add('comments-open'));
+  (state.openMilestoneComments||[]).forEach(id=>document.querySelector(`.journey-milestone[data-milestone-id="${CSS.escape(id)}"]`)?.classList.add('comments-open'));
+  requestAnimationFrame(()=>window.scrollTo({top:Number(state.scrollY)||0,left:0,behavior:'auto'}));
+}
+async function loadClientJourneyFramework(options={}) {
   const panel=document.getElementById('tab-journey'); const client=CLIENTS[currentIdx]; if(!panel||!client)return;
-  panel.innerHTML=renderJourneyLoading();
+  const refreshId=++journeyRefreshSequenceV312;
+  const sameClient=String(currentJourneyData?._clientId||'')===String(client.id);
+  const preserveState=options.preserveState!==false;
+  const uiState=preserveState?captureJourneyUiStateV312():null;
+  const showLoading=options.showLoading===true || (!sameClient&&!currentJourneyData);
+  if(showLoading)panel.innerHTML=renderJourneyLoading();else setWorkspaceActivityV312(options.activityLabel||'Updating workspace…','busy');
   try{
     await ensureMasterJourneyFramework();
     const results=await Promise.all([
@@ -5757,9 +5917,12 @@ async function loadClientJourneyFramework() {
       const ownerReq=(milestoneOwnerItemRequirements||[]).filter(t=>String(t.milestone_id)===String(moment.id));
       return businessReq.every(t=>validBusinessIds.has(String(t.journey_item_id))) && ownerReq.every(t=>validOwnerIds.has(String(t.owner_stage_item_id)));
     });
-    currentJourneyData={stages,items,progress,recommendations,comments,milestones,milestoneTriggers,clientMilestones,milestoneComments,meetings,touchpoints,owners,ownerTopics,ownerProgress,ownerRecommendations,ownerComments,ownerAlignmentTopics,ownerAlignmentOptions,ownerAlignmentResponses,ownerAlignmentAssessments,ownerStageItems,ownerStageProgress,ownerDecisionMoments,ownerDecisionTriggers,clientOwnerDecisions,milestoneOwnerItemRequirements,milestoneOwnerDecisionRequirements,milestoneAlignmentRequirements,roadmapNodes,roadmapPositions,roadmapAudit};
-    panel.innerHTML=renderClientJourney(currentJourneyData,client); currentOwnerJourneyView='all';
-  }catch(error){console.error(error);panel.innerHTML=`<div class="journey-error">Client journey framework could not be loaded. The Journey data store is not available. Contact the application administrator.<br><br>${escapeComparisonHtml(error.message||'Unknown database error')}</div>`;}
+    if(refreshId!==journeyRefreshSequenceV312)return;
+    currentJourneyData={_clientId:client.id,stages,items,progress,recommendations,comments,milestones,milestoneTriggers,clientMilestones,milestoneComments,meetings,touchpoints,owners,ownerTopics,ownerProgress,ownerRecommendations,ownerComments,ownerAlignmentTopics,ownerAlignmentOptions,ownerAlignmentResponses,ownerAlignmentAssessments,ownerStageItems,ownerStageProgress,ownerDecisionMoments,ownerDecisionTriggers,clientOwnerDecisions,milestoneOwnerItemRequirements,milestoneOwnerDecisionRequirements,milestoneAlignmentRequirements,roadmapNodes,roadmapPositions,roadmapAudit};
+    panel.innerHTML=renderClientJourney(currentJourneyData,client);
+    if(uiState)restoreJourneyUiStateV312(uiState);else{currentJourneyView='combined';currentOwnerJourneyView='all';}
+    clearWorkspaceActivityV312(options.successMessage||'Updated','success');
+  }catch(error){console.error(error);clearWorkspaceActivityV312('Update failed','error');if(showLoading)panel.innerHTML=`<div class="journey-error">Client journey framework could not be loaded. The Journey data store is not available. Contact the application administrator.<br><br>${escapeComparisonHtml(error.message||'Unknown database error')}</div>`;else alert(`The workspace could not be refreshed. ${error.message||''}`.trim());}
 }
 
 function getOwnerCalculatedPosition(data,ownerId){
@@ -5821,7 +5984,22 @@ function renderIndividualOwnerJourney(data,ownerId){
     return currentMoments.map(moment=>{
       const req=triggerMap.get(String(moment.id))||[];const missing=req.filter(id=>!progressMap.get(id));const rec=decisionsMap.get(String(moment.id))||{};
       const achieved=rec.status==='achieved'&&String(rec.decision_text||'').trim();const status=rec.status==='reopened'?'reopened':rec.status==='deferred'?'deferred':achieved?'achieved':missing.length===0?'unlocked':'locked';
-      return `<article class="owner-current-decision ${status}"><div><span>Decision Moment</span><strong>${escapeComparisonHtml(moment.title)}</strong><small>${status==='locked'?`${missing.length} prerequisite${missing.length===1?'':'s'} outstanding`:status==='achieved'?'Decision recorded':'Ready for discussion'}</small></div>${status!=='locked'?`<div class="owner-current-decision-input"><select onchange="saveOwnerDecision('${owner.id}','${moment.id}',this.value,document.getElementById('owner-decision-text-${owner.id}-${moment.id}').value)"><option value="unlocked" ${status==='unlocked'?'selected':''}>Open</option><option value="achieved" ${status==='achieved'?'selected':''}>Achieved</option><option value="deferred" ${status==='deferred'?'selected':''}>Deferred</option></select><input id="owner-decision-text-${owner.id}-${moment.id}" value="${escapeComparisonHtml(rec.decision_text||'')}" placeholder="Decision / rationale" onblur="saveOwnerDecision('${owner.id}','${moment.id}','${status==='reopened'?'unlocked':status}',this.value)"></div>`:''}</article>`;
+      const meta=decisionMomentMasterMeta(moment,'Owner');
+      const statusLabel=decisionMomentStateLabel(status);
+      return `<article class="owner-current-decision owner-decision-v39 ${status}" data-moment-id="${moment.id}">
+        <div class="owner-decision-v39-head">
+          <div><span>${escapeComparisonHtml(statusLabel)}</span><strong>${escapeComparisonHtml(moment.title)}</strong><small>${status==='locked'?`${missing.length} prerequisite${missing.length===1?'':'s'} outstanding`:status==='achieved'?'Decision recorded and preserved in history':'Automatically included in the next meeting agenda'}</small></div>
+          ${meta?`<em>${escapeComparisonHtml(meta.category)}</em>`:''}
+        </div>
+        ${status!=='locked'?`<div class="owner-decision-v39-body">
+          <div class="owner-current-decision-input owner-decision-v39-input">
+            <select onchange="saveOwnerDecision('${owner.id}','${moment.id}',this.value,document.getElementById('owner-decision-text-${owner.id}-${moment.id}').value)"><option value="unlocked" ${status==='unlocked'||status==='reopened'?'selected':''}>Open</option><option value="achieved" ${status==='achieved'?'selected':''}>Achieved</option><option value="deferred" ${status==='deferred'?'selected':''}>Deferred</option></select>
+            <input id="owner-decision-text-${owner.id}-${moment.id}" value="${escapeComparisonHtml(rec.decision_text||'')}" placeholder="Record the agreed decision or direction">
+            <button type="button" onclick="saveOwnerDecision('${owner.id}','${moment.id}',document.querySelector('.owner-decision-v39[data-moment-id=\'${moment.id}\'] select')?.value||'unlocked',document.getElementById('owner-decision-text-${owner.id}-${moment.id}').value)">Save</button>
+            <button class="owner-decision-meeting-btn" type="button" onclick="openOwnerDecisionInMeeting('${owner.id}','${moment.id}')">Open in Meeting →</button>
+          </div>
+        </div>`:''}
+      </article>`;
     }).join('')||'<div class="owner-current-empty">No Decision Moments are configured at this rung.</div>';
   };
 
@@ -6039,7 +6217,7 @@ async function savePhase4MomentTemplate(momentId){
   const selected=type=>[...d.querySelectorAll(`[data-phase4-type="${type}"]:checked`)].map(el=>el.value);const ongoing=type=>new Set([...d.querySelectorAll(`[data-phase4-ongoing="${type}"]:checked`)].map(el=>el.value));const mode=document.getElementById('phase4-owner-mode').value;const alignmentLevel=document.getElementById('phase4-alignment-level').value;
   await Promise.all([sb.from('journey_milestone_triggers').delete().eq('milestone_id',id),sb.from('journey_milestone_owner_item_requirements').delete().eq('milestone_id',id),sb.from('journey_milestone_owner_decision_requirements').delete().eq('milestone_id',id),sb.from('journey_milestone_alignment_requirements').delete().eq('milestone_id',id)]);
   const inserts=[];const businessO=ongoing('business');const ownerItemO=ongoing('owner-item');const ownerDecisionO=ongoing('owner-decision');const alignmentO=ongoing('alignment');const business=selected('business').map(journey_item_id=>({milestone_id:id,journey_item_id,reopens_if_incomplete:businessO.has(String(journey_item_id))}));if(business.length)inserts.push(sb.from('journey_milestone_triggers').insert(business));const oi=selected('owner-item').map(owner_stage_item_id=>({milestone_id:id,owner_stage_item_id,requirement_mode:mode,owner_id:null,reopens_if_incomplete:ownerItemO.has(String(owner_stage_item_id))}));if(oi.length)inserts.push(sb.from('journey_milestone_owner_item_requirements').insert(oi));const od=selected('owner-decision').map(owner_decision_moment_id=>({milestone_id:id,owner_decision_moment_id,requirement_mode:mode,owner_id:null,reopens_if_incomplete:ownerDecisionO.has(String(owner_decision_moment_id))}));if(od.length)inserts.push(sb.from('journey_milestone_owner_decision_requirements').insert(od));const ar=selected('alignment').map(alignment_topic_id=>({milestone_id:id,alignment_topic_id,required_status:alignmentLevel,reopens_if_incomplete:alignmentO.has(String(alignment_topic_id))}));if(ar.length)inserts.push(sb.from('journey_milestone_alignment_requirements').insert(ar));if(inserts.length){const responses=await Promise.all(inserts);const bad=responses.find(r=>r.error);if(bad){alert(bad.error.message);return;}}
-  d.close();await loadClientJourneyFramework();switchJourneyView('combined',document.querySelector('.journey-view-btn'));window.decisionLibraryData=null;if(document.getElementById('decisionLibraryDrawer')?.classList.contains('open'))await loadDecisionMomentLibrary();
+  d.close();await loadClientJourneyFramework({activityLabel:'Saving Decision Moment…'});window.decisionLibraryData=null;if(document.getElementById('decisionLibraryDrawer')?.classList.contains('open'))await loadDecisionMomentLibrary();
 }
 
 
@@ -6457,21 +6635,28 @@ function financeCalc(r){
 function financeLatest(){return currentFinanceRows.length?financeCalc(currentFinanceRows[0]):null}
 function financeKpi(label,value,meta='',tone=''){return `<div class="finance-kpi ${tone}"><div class="finance-kpi-label">${label}</div><div class="finance-kpi-value">${value}</div><div class="finance-kpi-meta">${meta}</div></div>`}
 function setFinanceView(view,btn){financeView=view;document.querySelectorAll('.finance-view-btn').forEach(b=>b.classList.remove('active'));btn?.classList.add('active');document.querySelectorAll('.finance-panel').forEach(p=>p.classList.remove('active'));document.getElementById(`finance-${view}`)?.classList.add('active');if(view==='benchmarking')loadFinanceBenchmarking();if(view==='insights')loadFinanceInsights()}
-async function loadClientFinance(){
+async function loadClientFinance(options={}){
   const panel=document.getElementById('tab-finance'),client=CLIENTS[currentIdx];if(!panel||!client)return;
-  panel.innerHTML='<div class="loading-state" style="height:300px"><div class="spinner"></div><div class="loading-text">Loading financial information…</div></div>';
+  const sameClient=String(currentFinanceClientId||'')===String(client.id);
+  const showLoading=options.showLoading===true||(!sameClient&&!currentFinanceRows.length);
+  const scrollY=window.scrollY;
+  if(showLoading)panel.innerHTML='<div class="loading-state" style="height:300px"><div class="spinner"></div><div class="loading-text">Loading financial information…</div></div>';else setWorkspaceActivityV312(options.activityLabel||'Updating financials…','busy');
   const [periodResult,insightResult,targetResult]=await Promise.all([
     sb.from('client_financial_periods').select('*').eq('client_id',client.id).order('period_end',{ascending:false}),
     sb.from('client_financial_insights').select('*').eq('client_id',client.id).order('created_at',{ascending:false}),
     sb.from('client_financial_targets').select('*').eq('client_id',client.id).order('created_at',{ascending:false})
   ]);
-  if(periodResult.error){console.error(periodResult.error);panel.innerHTML=`<div class="finance-shell"><div class="finance-error">Financials could not be loaded. Financial data is not available. Contact the application administrator.<br><br>${escapeComparisonHtml(periodResult.error.message||'Unknown error')}</div></div>`;return}
+  if(periodResult.error){console.error(periodResult.error);clearWorkspaceActivityV312('Financial refresh failed','error');if(showLoading)panel.innerHTML=`<div class="finance-shell"><div class="finance-error">Financials could not be loaded. Financial data is not available. Contact the application administrator.<br><br>${escapeComparisonHtml(periodResult.error.message||'Unknown error')}</div></div>`;else alert(`Financials could not be refreshed. ${periodResult.error.message||''}`.trim());return}
   currentFinanceRows=periodResult.data||[];
   currentFinanceInsights=insightResult.error?[]:(insightResult.data||[]);
   financeTargetsLoadError=targetResult.error||null;
   currentFinanceTargets=targetResult.error?[]:(targetResult.data||[]);
+  currentFinanceClientId=client.id;
   panel.innerHTML=renderFinanceWorkspace(client,currentFinanceRows);
-  requestAnimationFrame(initFinanceTrendGapAnimation);
+  const financeButton=[...panel.querySelectorAll('.finance-view-btn')].find(b=>{const t=b.textContent.trim().toLowerCase();return (financeView==='overview'&&t==='snapshot')||(financeView==='benchmarking'&&t==='benchmarks')||(financeView==='insights'&&t==='insights')||(financeView==='data'&&t.includes('plan'));});
+  setFinanceView(financeView||'overview',financeButton);
+  requestAnimationFrame(()=>{initFinanceTrendGapAnimation();window.scrollTo({top:scrollY,left:0,behavior:'auto'});});
+  clearWorkspaceActivityV312(options.successMessage||'Financials updated','success');
 }
 function renderFinanceWorkspace(client,rows){const has=rows.length>0;return `<div class="finance-shell"><div class="finance-hero"><div><div class="finance-kicker">Financials</div><div class="finance-title">Financial Performance</div><div class="finance-sub">Review performance against plan, benchmark the client, identify advisory signals and maintain the source figures behind them.</div></div><div class="finance-actions"><button class="finance-btn" type="button" onclick="downloadFinanceTemplate()">Download Data Template</button><label class="finance-btn primary">Import Data<input type="file" accept=".xlsx,.xls,.csv" onchange="importFinanceWorkbook(event)"></label></div></div><div class="finance-tabs"><button class="finance-view-btn active" onclick="setFinanceView('overview',this)">Snapshot</button><button class="finance-view-btn" onclick="setFinanceView('benchmarking',this)">Benchmarks</button><button class="finance-view-btn" onclick="setFinanceView('insights',this)">Insights</button><button class="finance-view-btn" onclick="setFinanceView('data',this)">Plan &amp; Data</button></div><div class="finance-panel active" id="finance-overview">${has?renderFinanceOverview(client,rows):renderFinanceEmpty()}</div><div class="finance-panel" id="finance-benchmarking"><div class="finance-empty"><strong>Benchmark cohort not loaded</strong><span>Open this view to calculate the anonymised industry comparison.</span></div></div><div class="finance-panel" id="finance-insights"><div class="finance-empty"><strong>Advisory insights not reviewed</strong><span>Open this view to assess the latest financial signals.</span></div></div><div class="finance-panel" id="finance-data">${renderFinanceData(client,rows)}</div></div>`}
 
@@ -6956,9 +7141,22 @@ function renderIntelligenceWorkspace(brief,clientName,generatedAt){
   return `<div class="tab-panel" id="tab-intelligence"><div class="intelligence-workspace"><div class="intelligence-hero"><div><div class="intelligence-kicker">Client Intelligence</div><h2>${escapeComparisonHtml(clientName)}</h2><p>Add the latest advisor context, generate a focused brief, then deliberately promote the items that belong in the meeting or strategic Road Map.</p></div></div><section class="intelligence-recent"><div class="intelligence-section-head"><div><h3>Add Recent Information</h3><span>Raw advisor input for the next brief</span></div></div><div class="intelligence-section-body">${renderRecentInformationPanel()}</div></section><div class="intelligence-grid"><section class="intelligence-primary"><div class="intelligence-section-head"><div><h3 id="intelligenceBriefTitle">Latest Brief</h3><span id="intelligenceBriefSubtitle">The current preparation view for this client</span></div></div><div class="intelligence-section-body" id="intelligenceBriefBody">${intelligenceBriefBody(brief,clientName,generatedAt)}</div></section><div class="intelligence-side-stack"><details class="intelligence-side-card intelligence-collapsible"><summary>Changes Since Previous Brief</summary><div class="intelligence-collapsible-body" id="tab-comparison">${comparison}</div></details><details class="intelligence-side-card intelligence-collapsible"><summary>Brief History</summary><div class="intelligence-collapsible-body" id="intelligenceBriefHistory">${intelligenceBriefHistoryHtml()}</div></details></div></div></div></div>`;
 }
 
-function resetMain(){const c=CLIENTS[currentIdx];document.getElementById('mainPanel').innerHTML=`<div class="brief-header"><div><div class="brief-eyebrow">Client Workspace</div><div class="brief-title">${escapeComparisonHtml(c.name)}</div><div class="brief-timestamp">Advisory relationship workspace</div></div></div><div class="tab-bar"><button class="tab-btn active" onclick="switchTab('journey',this)">Journey</button><button class="tab-btn" onclick="switchTab('finance',this)">Financials</button><button class="tab-btn" onclick="switchTab('intelligence',this)">Intelligence</button></div>${renderJourneyTabShell(true)}${renderFinanceTabShell()}${renderIntelligenceWorkspace(null,c.name,null)}`;queueMicrotask(()=>loadClientJourneyFramework());}
-function renderBrief(brief,clientName,generatedAt){document.getElementById('mainPanel').innerHTML=`<div class="brief-header"><div><div class="brief-eyebrow">Client Workspace</div><div class="brief-title">${escapeComparisonHtml(clientName)}</div><div class="brief-timestamp">Advisory relationship workspace</div></div></div><div class="tab-bar"><button class="tab-btn active" onclick="switchTab('journey',this)">Journey</button><button class="tab-btn" onclick="switchTab('finance',this)">Financials</button><button class="tab-btn" onclick="switchTab('intelligence',this)">Intelligence</button></div>${renderJourneyTabShell(true)}${renderFinanceTabShell()}${renderIntelligenceWorkspace(brief,clientName,generatedAt)}`;queueMicrotask(()=>loadClientJourneyFramework());}
-async function switchTab(tab,btn){document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));btn?.classList.add('active');document.getElementById('tab-'+tab)?.classList.add('active');if(tab==='journey')await loadClientJourneyFramework();if(tab==='finance')await loadClientFinance();}
+function renderWorkspaceShellV312(brief,clientName,generatedAt){
+  const tab=currentWorkspaceTab||'journey';
+  const financeHtml=renderFinanceTabShell().replace('class="tab-panel"',`class="tab-panel${tab==='finance'?' active':''}"`);
+  const intelligenceHtml=renderIntelligenceWorkspace(brief,clientName,generatedAt).replace('class="tab-panel"',`class="tab-panel${tab==='intelligence'?' active':''}"`);
+  return `<div class="brief-header"><div><div class="brief-eyebrow">Client Workspace</div><div class="brief-title">${escapeComparisonHtml(clientName)}</div><div class="brief-timestamp">Advisory relationship workspace</div></div></div><div class="tab-bar"><button class="tab-btn ${tab==='journey'?'active':''}" onclick="switchTab('journey',this)">Journey</button><button class="tab-btn ${tab==='finance'?'active':''}" onclick="switchTab('finance',this)">Financials</button><button class="tab-btn ${tab==='intelligence'?'active':''}" onclick="switchTab('intelligence',this)">Intelligence</button></div>${renderJourneyTabShell(tab==='journey')}${financeHtml}${intelligenceHtml}`;
+}
+function resetMain(){const c=CLIENTS[currentIdx];document.getElementById('mainPanel').innerHTML=renderWorkspaceShellV312(null,c.name,null);queueMicrotask(()=>{loadClientJourneyFramework({showLoading:true,preserveState:false});if(currentWorkspaceTab==='finance')loadClientFinance({showLoading:true});});}
+function renderBrief(brief,clientName,generatedAt){document.getElementById('mainPanel').innerHTML=renderWorkspaceShellV312(brief,clientName,generatedAt);queueMicrotask(()=>{loadClientJourneyFramework({showLoading:true,preserveState:false});if(currentWorkspaceTab==='finance')loadClientFinance({showLoading:true});});}
+async function switchTab(tab,btn){
+  currentWorkspaceTab=tab||'journey';
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  btn?.classList.add('active');document.getElementById('tab-'+currentWorkspaceTab)?.classList.add('active');
+  const client=CLIENTS[currentIdx];
+  if(currentWorkspaceTab==='journey'&&String(currentJourneyData?._clientId||'')!==String(client?.id||''))await loadClientJourneyFramework({showLoading:true,preserveState:false});
+  if(currentWorkspaceTab==='finance'&&String(currentFinanceClientId||'')!==String(client?.id||''))await loadClientFinance({showLoading:true});
+}
 function roadmapV2Lane(label,meta,kind,stage,entities){const ownerId=kind.startsWith('owner:')?kind.split(':')[1]:'';const laneKind=kind.startsWith('owner:')?'owner':kind;const items=entities.filter(e=>Number(e.stageOrder)===Number(stage.stage_order)).sort((a,b)=>Number(a.priority)-Number(b.priority)||a.title.localeCompare(b.title));return `<div class="roadmap-v2-lane roadmap-lane ${laneKind}"><div class="roadmap-v2-lane-label"><strong>${escapeComparisonHtml(label)}</strong><span>${escapeComparisonHtml(meta||'')}</span></div><div class="roadmap-v2-items roadmap-cell" data-drop-track="${laneKind}" data-drop-owner="${ownerId}" data-drop-stage="${stage.stage_order}">${items.length?items.map(roadmapBubble).join(''):`<div class="roadmap-v2-empty">No active items at this stage.</div>`}</div></div>`;}
 function roadmapDecisionStageLocked(entity){return ['business_decision','owner_decision','phase4_decision'].includes(String(entity.linkedType||''));}
 function roadmapSequenceRank(entity){
@@ -7295,6 +7493,7 @@ renderDecisionMomentLibrary=function(){_v34RenderDecisionMomentLibrary();renderM
 
 <script id="decision-activation-v36-script">
 /* v3.6 — deliberate, client-specific Decision Moment activation from the firm master library. */
+/* v3.8 — modal/backdrop interaction safety: dragging or text selection never dismisses a modal. */
 const masterDecisionPickerState={journey:'Business',stageId:'',ownerId:'',search:'',category:'',showAll:false};
 function masterDecisionPickerStage(){return (currentJourneyData?.stages||[]).find(s=>String(s.id)===String(masterDecisionPickerState.stageId))||null;}
 function masterDecisionPickerOwner(){return (currentJourneyData?.owners||[]).find(o=>String(o.id)===String(masterDecisionPickerState.ownerId))||null;}
@@ -7318,7 +7517,7 @@ function centreMasterDecisionPicker(){
 function ensureMasterDecisionPicker(){
   let d=document.getElementById('masterDecisionPicker');if(d)return d;
   d=document.createElement('dialog');d.id='masterDecisionPicker';d.className='master-decision-picker';
-  d.addEventListener('click',e=>{if(e.target===d)d.close();});
+  bindSafeBackdropDismiss(d,()=>d.close(),{dialog:true});
   d.addEventListener('dblclick',e=>{if(e.target.closest('.master-decision-picker-head')&&!e.target.closest('button'))centreMasterDecisionPicker();});
   d.addEventListener('pointerdown',e=>{
     const head=e.target.closest('.master-decision-picker-head');
@@ -7417,5 +7616,594 @@ addJourneyMilestone=function(stageId){openMasterDecisionPicker('Business',stageI
 @media(max-width:720px){.master-decision-picker-tools{grid-template-columns:1fr}.master-decision-picker-toggle{align-self:auto}.master-decision-picker-row{grid-template-columns:1fr}.master-decision-picker-add{width:100%}.owner-rung-decision-head{align-items:flex-start!important;gap:8px}.owner-rung-add-decision{margin-left:0}}
 </style>
 
+
+<style id="decision-workspace-v39-styles">
+/* v3.9 — Decision Moment workspace refresh */
+.decision-moment-v39{
+  --dm-accent:#c9a84c;
+  background:linear-gradient(145deg,#0d1d2b,#091722)!important;
+  border:1px solid #2d465b!important;
+  border-left:3px solid var(--dm-accent)!important;
+  border-radius:13px!important;
+  overflow:hidden!important;
+}
+.decision-moment-v39.locked{--dm-accent:#60778a!important;background:linear-gradient(145deg,#0d1d2b,#0b1824)!important;opacity:1!important}
+.decision-moment-v39.unlocked{--dm-accent:#d4b54e!important;background:linear-gradient(145deg,#0d1d2b,#091722)!important;border-color:#3c5367!important}
+.decision-moment-v39.reopened{--dm-accent:#d98c3f!important;background:linear-gradient(145deg,#151e25,#0b1824)!important}
+.decision-moment-v39.achieved{--dm-accent:#62a77c!important;background:linear-gradient(145deg,#0d211d,#091a18)!important;border-color:#355e50!important}
+.decision-moment-v39.deferred{--dm-accent:#9b7b62!important;background:linear-gradient(145deg,#171c21,#0b1824)!important}
+.decision-v39-main{
+  grid-template-columns:40px minmax(0,1fr) auto!important;
+  gap:14px!important;
+  padding:16px 17px 15px 18px!important;
+  align-items:start!important;
+  background:linear-gradient(180deg,rgba(19,42,58,.7),rgba(10,25,38,.25))!important;
+}
+.decision-v39-icon{
+  width:36px!important;height:36px!important;
+  color:var(--dm-accent)!important;
+  background:conic-gradient(var(--dm-accent) var(--decision-progress),#203447 0)!important;
+}
+.decision-v39-summary{min-width:0}
+.decision-v39-summary-top{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+.decision-v39-summary-top .journey-milestone-kicker{color:var(--dm-accent)!important;margin-bottom:4px!important}
+.decision-v39-summary-top .journey-milestone-title{font-size:15px!important;line-height:1.35!important}
+.decision-v39-state{
+  display:inline-flex;align-items:center;justify-content:center;
+  flex:0 0 auto;min-height:25px;padding:0 9px;border-radius:999px;
+  border:1px solid #3a5267;background:#102232;color:#a8bdcc;
+  font-size:8.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap
+}
+.decision-v39-state.unlocked{color:#e7ca68;border-color:#6f6129;background:#251f11}
+.decision-v39-state.reopened{color:#f0b16f;border-color:#714b28;background:#271b12}
+.decision-v39-state.achieved{color:#9bd0af;border-color:#3f6d57;background:#10261e}
+.decision-v39-state.deferred{color:#c7aa91;border-color:#5b493a;background:#211a16}
+.decision-v39-state.locked{color:#8ba1b2;border-color:#3b5062;background:#111f2b}
+.decision-v39-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.decision-v39-meta span{
+  display:inline-flex;align-items:center;min-height:21px;padding:0 7px;border:1px solid #2b465b;
+  border-radius:999px;background:#0a1927;color:#7793a6;font-size:8.5px;font-weight:700
+}
+.decision-v39-meta span.meeting{border-color:#6f6129;color:#e0c25c;background:#1e1b10}
+.decision-v39-requirement-line{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-top:9px;color:#758fa2;font-size:10px;line-height:1.4}
+.decision-v39-requirement-line strong{color:#c5d3dd;font-size:10px}
+.decision-v39-progress{margin-top:8px!important;max-width:420px!important}
+.decision-v39-header-actions{align-self:flex-start!important}
+.decision-workspace-v39{
+  padding:14px 16px 16px 72px!important;
+  background:#081724!important;
+  border-top:1px solid #294158!important
+}
+.decision-v39-top{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(210px,.7fr);gap:11px}
+.decision-v39-prompt,.decision-v39-workflow,.decision-v39-record,.decision-v39-context{
+  border:1px solid #29465d;border-radius:10px;background:#0d1d2b
+}
+.decision-v39-prompt{padding:14px 15px}
+.decision-v39-section-label{
+  color:#7391a6;font-size:8px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;margin-bottom:6px
+}
+.decision-v39-prompt-text{color:#edf3f7;font-size:14px;font-weight:720;line-height:1.5}
+.decision-v39-why{display:grid;gap:3px;margin-top:11px;padding-top:10px;border-top:1px solid #20394e}
+.decision-v39-why strong{color:#c9a84c;font-size:9px;text-transform:uppercase;letter-spacing:.08em}
+.decision-v39-why span{color:#91a8b8;font-size:10.5px;line-height:1.5}
+.decision-v39-workflow{padding:14px 15px;background:#0a1a27}
+.decision-v39-workflow.meeting-ready{border-color:#6a5d2c;background:linear-gradient(145deg,#151c20,#101b23)}
+.decision-v39-workflow-row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:7px 0;border-top:1px solid #20384b}
+.decision-v39-workflow-row:first-of-type{border-top:0}
+.decision-v39-workflow-row span{color:#6f899c;font-size:9px}
+.decision-v39-workflow-row strong{color:#d7e3ea;font-size:9.5px;text-align:right}
+.decision-v39-meeting-btn{
+  width:100%;height:34px;margin-top:9px;border:1px solid #766528;border-radius:7px;
+  background:#211d10;color:#e0c25c;font:inherit;font-size:9.5px;font-weight:800;cursor:pointer
+}
+.decision-v39-meeting-btn:hover{background:#2b2512;border-color:#a48a35;color:#f3d774}
+.decision-v39-record{margin-top:11px;padding:14px 15px}
+.decision-v39-record-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;padding-bottom:11px;border-bottom:1px solid #20394e}
+.decision-v39-record-head h4{margin:0;color:#edf3f7;font-size:13px}
+.decision-v39-record-head p{margin:4px 0 0;color:#718b9e;font-size:10px;line-height:1.45;max-width:720px}
+.decision-v39-core-grid{display:grid;grid-template-columns:145px minmax(220px,1fr) 155px 155px;gap:9px;margin-top:11px}
+.decision-v39-outcome{grid-column:1/-1!important}
+.decision-v39-outcome textarea{min-height:76px!important;font-size:11.5px!important;line-height:1.5!important}
+.decision-v39-record-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.decision-v39-record-actions button{height:34px;padding:0 12px;border-radius:7px;font:inherit;font-size:9.5px;font-weight:800;cursor:pointer}
+.decision-v39-secondary{border:1px solid #35536b;background:#0b1b2a;color:#c7d6e0}
+.decision-v39-secondary:hover{background:#11283a;border-color:#4f718a;color:#fff}
+.decision-v39-primary{border:1px solid #d6b74c;background:linear-gradient(180deg,#dec25f,#c9a84c);color:#0a1621}
+.decision-v39-primary:hover{filter:brightness(1.05)}
+.decision-v39-context{margin-top:10px;overflow:hidden}
+.decision-v39-context>summary{
+  display:flex;justify-content:space-between;gap:12px;align-items:center;padding:11px 13px;
+  cursor:pointer;list-style:none;color:#cbd9e2;font-size:10.5px;font-weight:750;background:#0a1a27
+}
+.decision-v39-context>summary::-webkit-details-marker{display:none}
+.decision-v39-context>summary small{color:#687f91;font-size:9px;font-weight:600}
+.decision-v39-context[open]>summary{border-bottom:1px solid #294158}
+.decision-v39-context-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:12px 13px 13px}
+.decision-v39-context-grid .decision-text{grid-column:auto!important}
+.decision-v39-context-grid textarea{min-height:68px!important}
+.decision-v39-review{grid-column:1/2;max-width:180px}
+.decision-v39-locked-panel{display:flex;justify-content:space-between;gap:18px;align-items:center;padding:12px 13px;border:1px dashed #3b5367;border-radius:9px;background:#0a1927}
+.decision-v39-locked-panel span{display:block;color:#8298a8;font-size:8.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+.decision-v39-locked-panel strong{display:block;color:#c8d6df;font-size:12px}
+.decision-v39-locked-panel p{margin:4px 0 0;color:#71899a;font-size:10px}
+.decision-v39-lock-progress{text-align:right;min-width:95px}
+.decision-v39-lock-progress b{display:block;color:#d8e3ea;font-size:17px}
+.decision-v39-lock-progress span{margin:2px 0 0;color:#6f8799;font-size:8px}
+.decision-v39-comments{padding-left:72px!important;background:#081724!important}
+.decision-v39-comments .journey-milestone-comments-toggle{font-weight:700}
+.decision-v39-footer{justify-content:space-between!important;padding-left:72px!important}
+.decision-v39-footer>span{color:#5f7a8d;font-size:8.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.decision-reopened-v39{margin:0 0 10px}
+.decision-focus-pulse{animation:decisionFocusPulse 1.25s ease 2}
+@keyframes decisionFocusPulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 0 3px rgba(201,168,76,.24);border-color:#b89a3e}}
+/* Owner Decision Moments */
+.owner-decision-v39{display:block!important;padding:0!important;border-radius:10px!important;overflow:hidden!important;background:#0c1b28!important;border:1px solid #29445a!important}
+.owner-decision-v39.unlocked,.owner-decision-v39.reopened{border-left:3px solid #c9a84c!important}
+.owner-decision-v39.achieved{border-left:3px solid #62a77c!important}
+.owner-decision-v39.locked{border-left:3px solid #60778a!important;opacity:.88}
+.owner-decision-v39-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;padding:12px 13px;background:#102131}
+.owner-decision-v39-head>div{min-width:0}
+.owner-decision-v39-head span{display:block;color:#c9a84c!important;font-size:8px!important;font-weight:800!important;letter-spacing:.11em!important;text-transform:uppercase}
+.owner-decision-v39-head strong{display:block;margin-top:3px;color:#edf3f7!important;font-size:11.5px!important;line-height:1.4}
+.owner-decision-v39-head small{display:block;margin-top:4px;color:#7891a3!important;font-size:9px!important;line-height:1.35}
+.owner-decision-v39-head em{font-style:normal;flex:0 0 auto;max-width:180px;padding:4px 7px;border:1px solid #385168;border-radius:999px;color:#8da7b9;font-size:8px;font-weight:700;text-align:right}
+.owner-decision-v39-body{padding:10px 12px 12px;border-top:1px solid #294158}
+.owner-decision-v39-input{display:grid!important;grid-template-columns:115px minmax(220px,1fr) 70px auto!important;gap:7px!important;align-items:center!important}
+.owner-decision-v39-input select,.owner-decision-v39-input input{height:34px!important;min-height:34px!important}
+.owner-decision-v39-input button{height:34px;border:1px solid #35536b;border-radius:7px;background:#0b1b2a;color:#d8e4ec;padding:0 10px;font-size:9px;font-weight:800;cursor:pointer}
+.owner-decision-v39-input button:hover{background:#11283a}
+.owner-decision-v39-input .owner-decision-meeting-btn{border-color:#6f6129;background:#211d10;color:#e0c25c;white-space:nowrap}
+@media(max-width:980px){
+  .decision-v39-core-grid{grid-template-columns:1fr 1fr}
+  .decision-v39-outcome{grid-column:1/-1!important}
+  .decision-v39-top{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  .decision-v39-main{grid-template-columns:34px minmax(0,1fr)!important}
+  .decision-v39-header-actions{grid-column:2}
+  .decision-workspace-v39,.decision-v39-comments,.decision-v39-footer{padding-left:15px!important}
+  .decision-v39-summary-top{flex-direction:column}
+  .decision-v39-core-grid,.decision-v39-context-grid{grid-template-columns:1fr}
+  .decision-v39-context-grid .decision-text,.decision-v39-review{grid-column:1!important;max-width:none}
+  .decision-v39-record-head{flex-direction:column}
+  .decision-v39-record-actions{flex-direction:column}
+  .decision-v39-record-actions button{width:100%}
+  .owner-decision-v39-input{grid-template-columns:1fr!important}
+}
+</style>
+<script id="decision-workspace-v39-script">
+function decisionMomentMasterMeta(moment,journey='Business'){
+  if(!moment||typeof MASTER_DECISION_MOMENT_LIBRARY==='undefined')return null;
+  const key=masterJourneyTitleKey(moment.title||'');
+  return MASTER_DECISION_MOMENT_LIBRARY.find(x=>x.journey===journey&&masterJourneyTitleKey(x.title)===key)||null;
+}
+function decisionMomentMeaningfulWhy(moment){
+  const why=String(moment?.why_it_matters||'').trim();
+  if(!why||/^firm library\s*·/i.test(why)||/^firm library$/i.test(why))return '';
+  return why;
+}
+function decisionMomentStateLabel(state){
+  return ({locked:'Waiting on prerequisites',unlocked:'Ready for decision',reopened:'Review decision',achieved:'Decision recorded',deferred:'Deferred'})[state]||'Decision Moment';
+}
+function focusDecisionAgendaItem(title){
+  const rows=[...document.querySelectorAll('.meeting-agenda-item')];
+  const row=rows.find(el=>String(el.querySelector('strong')?.textContent||'').trim().toLowerCase()===String(title||'').trim().toLowerCase());
+  if(!row)return;
+  row.classList.add('decision-focus-pulse');
+  row.scrollIntoView({behavior:'smooth',block:'center'});
+  setTimeout(()=>row.classList.remove('decision-focus-pulse'),2800);
+}
+async function openDecisionMomentInMeeting(milestoneId){
+  const moment=currentJourneyData?.milestones?.find(m=>String(m.id)===String(milestoneId));
+  if(!moment)return;
+  await ensureFinanceContextForCurrentClient();
+  openMeetingMode();
+  setTimeout(()=>{
+    const discuss=document.querySelector('[data-meeting-panel="discuss"]');
+    discuss?.click();
+    setTimeout(()=>focusDecisionAgendaItem(moment.title),60);
+  },80);
+}
+async function openOwnerDecisionInMeeting(ownerId,momentId){
+  const moment=currentJourneyData?.ownerDecisionMoments?.find(m=>String(m.id)===String(momentId));
+  if(!moment)return;
+  await ensureFinanceContextForCurrentClient();
+  openMeetingMode();
+  setTimeout(()=>{
+    const discuss=document.querySelector('[data-meeting-panel="discuss"]');
+    discuss?.click();
+    setTimeout(()=>focusDecisionAgendaItem(moment.title),60);
+  },80);
+}
+/* v3.9 save flow: optional one-click achievement, automatic decision date, no schema change. */
+saveJourneyMilestone=async function(milestoneId,forceStatus=null){
+  const client=CLIENTS[currentIdx];if(!client)return;
+  const statusEl=document.getElementById(`milestone-status-${milestoneId}`);
+  const requestedStatus=forceStatus||statusEl?.value||'unlocked';
+  const recordedDecision=document.getElementById(`milestone-decision-${milestoneId}`)?.value.trim()||'';
+  if(requestedStatus==='achieved'&&!recordedDecision){
+    alert('Record the agreed decision before marking this Decision Moment as achieved.');
+    document.getElementById(`milestone-decision-${milestoneId}`)?.focus();
+    return;
+  }
+  let decisionDate=document.getElementById(`milestone-date-${milestoneId}`)?.value||null;
+  if(requestedStatus==='achieved'&&!decisionDate)decisionDate=new Date().toISOString().slice(0,10);
+  if(statusEl&&forceStatus)statusEl.value=forceStatus;
+  const payload={
+    client_id:client.id,
+    milestone_id:milestoneId,
+    status:requestedStatus,
+    decision_owner:document.getElementById(`milestone-owner-${milestoneId}`)?.value.trim()||'',
+    decision_date:decisionDate,
+    target_date:document.getElementById(`milestone-target-${milestoneId}`)?.value||null,
+    decision_text:recordedDecision,
+    circumstances:document.getElementById(`milestone-circumstances-${milestoneId}`)?.value.trim()||'',
+    advisor_rationale:document.getElementById(`milestone-rationale-${milestoneId}`)?.value.trim()||'',
+    risks_considered:document.getElementById(`milestone-risks-${milestoneId}`)?.value.trim()||'',
+    expected_outcome:document.getElementById(`milestone-outcome-${milestoneId}`)?.value.trim()||'',
+    review_date:document.getElementById(`milestone-review-${milestoneId}`)?.value||null,
+    decided_in_meeting_id:activeJourneyMeetingId||null,
+    updated_at:new Date().toISOString()
+  };
+  const {data:saved,error}=await sb.from('client_journey_milestones').upsert(payload,{onConflict:'client_id,milestone_id'}).select().single();
+  if(error){console.error(error);alert('The Decision Moment could not be saved.');return}
+  if(payload.status==='achieved'){await saveDecisionMomentSnapshot(saved,milestoneId);await recordDecisionCycle(saved,'achieved')}
+  await loadClientJourneyFramework();
+  const businessBtn=[...document.querySelectorAll('.journey-view-btn')].find(b=>b.textContent.trim()==='Business');
+  if(businessBtn)switchJourneyView('business',businessBtn);
+};
+</script>
+
 </body>
 </html>
+
+<style id="decision-context-v310-styles">
+/* v3.10 — configured prerequisites + client-facing decision narrative */
+.decision-v39-top{grid-template-columns:minmax(0,1fr) 220px!important;gap:9px!important}
+.decision-v39-prompt{padding:10px 12px!important;min-height:0!important}
+.decision-v39-prompt-text{font-size:12.5px!important;line-height:1.38!important;font-weight:720!important}
+.decision-v39-why{margin-top:7px!important;padding-top:7px!important;display:grid!important;grid-template-columns:88px 1fr!important;gap:8px!important;align-items:start!important}
+.decision-v39-why strong{font-size:8px!important;letter-spacing:.08em!important;text-transform:uppercase!important;color:#d1b45b!important}
+.decision-v39-why span{font-size:10.5px!important;line-height:1.45!important;color:#a9becd!important}
+.decision-v39-workflow{padding:10px 12px!important}
+.decision-v39-workflow-row{padding:5px 0!important}
+.decision-v39-meeting-btn{margin-top:7px!important;padding:7px 9px!important}
+.decision-v39-record{margin-top:9px!important}
+.decision-moment-v310-needs-setup{border-color:#9b743a!important;box-shadow:inset 3px 0 0 #d69a43}
+.decision-moment-v310-needs-setup .decision-v39-state{color:#f0bd72!important;border-color:#7a5428!important;background:#271b11!important}
+.decision-v310-setup-note{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;padding:9px 10px;border:1px solid #604926;border-radius:8px;background:#201a11;color:#d7c39a;font-size:10px;line-height:1.45}
+.decision-v310-setup-note button{flex:0 0 auto;border:1px solid #d2ad55;background:#d2ad55;color:#0d1c29;border-radius:7px;padding:7px 10px;font-size:9px;font-weight:850;cursor:pointer}
+
+.decision-config-v310{position:fixed!important;left:50%;top:50%;transform:translate(-50%,-50%);margin:0!important;width:min(920px,calc(100vw - 32px));max-height:min(860px,calc(100vh - 32px));padding:0;border:0;border-radius:18px;overflow:hidden;background:#fff;color:#102131;box-shadow:0 30px 90px rgba(7,18,29,.38)}
+.decision-config-v310::backdrop{background:rgba(7,18,29,.68);backdrop-filter:blur(3px)}
+.decision-config-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding:22px 25px 20px;background:linear-gradient(135deg,#0b1b2a,#102b41);color:#fff;border-bottom:3px solid #c9aa4a}
+.decision-config-head .kicker{font-size:10px;font-weight:850;letter-spacing:.14em;text-transform:uppercase;color:#d7bd69;margin-bottom:6px}
+.decision-config-head h3{margin:0;font-size:22px;line-height:1.18}
+.decision-config-head p{margin:6px 0 0;color:#a8bdcc;font-size:12px;line-height:1.45}
+.decision-config-close{border:1px solid #426078;background:#10283a;color:#dce8ef;width:32px;height:32px;border-radius:8px;font-size:19px;cursor:pointer}
+.decision-config-body{max-height:calc(min(860px,100vh - 32px) - 91px);overflow:auto;padding:22px 25px 25px;background:#f5f7f9}
+.decision-config-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.decision-config-field{display:flex;flex-direction:column;gap:6px}.decision-config-field.full{grid-column:1/-1}
+.decision-config-field label{font-size:9px;font-weight:850;letter-spacing:.1em;text-transform:uppercase;color:#536b7d}
+.decision-config-field input,.decision-config-field textarea{width:100%;border:1px solid #c9d5dd;border-radius:8px;background:#fff;color:#102131;padding:10px 11px;font:inherit;font-size:12px;outline:none}
+.decision-config-field textarea{min-height:78px;resize:vertical;line-height:1.48}
+.decision-config-field input:focus,.decision-config-field textarea:focus{border-color:#b99b43;box-shadow:0 0 0 3px rgba(201,170,74,.12)}
+.decision-config-explain{margin-top:16px;padding:12px 13px;border:1px solid #d8e0e5;border-left:3px solid #c9aa4a;border-radius:9px;background:#fff;color:#607585;font-size:11px;line-height:1.5}
+.decision-config-explain strong{color:#243b4d}
+.decision-config-prereq{margin-top:16px;border:1px solid #d8e0e5;border-radius:11px;background:#fff;overflow:hidden}
+.decision-config-prereq-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:14px 15px;border-bottom:1px solid #e1e7eb;background:#fbfcfd}
+.decision-config-prereq-head strong{display:block;color:#17364d;font-size:13px;margin-bottom:3px}.decision-config-prereq-head span{color:#6b7f8e;font-size:10.5px;line-height:1.4}
+.decision-config-prereq-count{flex:0 0 auto;border:1px solid #d9c887;background:#fff8df;color:#7a641f;border-radius:999px;padding:4px 8px;font-size:9px;font-weight:800}
+.decision-config-prereq-list{padding:5px 15px 10px;max-height:290px;overflow:auto}
+.decision-config-area{padding:10px 0 4px;color:#28485e;font-size:9px;font-weight:850;letter-spacing:.08em;text-transform:uppercase;border-top:1px solid #edf1f4}.decision-config-area:first-child{border-top:0}
+.decision-config-option{display:flex;gap:9px;align-items:flex-start;padding:7px 4px;color:#344f62;font-size:11px;line-height:1.4;cursor:pointer}.decision-config-option input{margin-top:2px;accent-color:#b8973c}
+.decision-config-immediate{display:flex;gap:10px;align-items:flex-start;margin:11px 15px 14px;padding:10px 11px;border:1px solid #e4d49e;border-radius:8px;background:#fff9e8;color:#675624;font-size:10.5px;line-height:1.45;cursor:pointer}
+.decision-config-immediate input{margin-top:2px;accent-color:#b8973c}
+.decision-config-actions{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:16px}.decision-config-actions span{color:#748796;font-size:10px}.decision-config-actions div{display:flex;gap:8px}
+.decision-config-btn{border:1px solid #cbd5dc;background:#fff;color:#244258;border-radius:8px;padding:9px 13px;font-size:11px;font-weight:800;cursor:pointer}.decision-config-btn.primary{border-color:#102b41;background:#102b41;color:#fff}.decision-config-btn.primary:hover{background:#173b58}
+
+.meeting-agenda-item.decision-context-v310{align-items:flex-start!important;border-color:#d8c47f!important;background:linear-gradient(145deg,#fffdf6,#fff)!important}
+.meeting-decision-question-v310{display:block!important;color:#17364d!important;font-size:12px!important;font-weight:750!important;line-height:1.42!important;margin-top:2px!important}
+.meeting-decision-narrative-v310{display:block!important;margin:6px 0 0!important;color:#657b8b!important;font-size:10.5px!important;line-height:1.48!important;max-width:860px!important}
+.meeting-decision-title-v310{color:#8a6c20!important;font-size:9px!important;font-weight:850!important;text-transform:uppercase!important;letter-spacing:.07em!important}
+@media(max-width:760px){.decision-config-grid{grid-template-columns:1fr}.decision-v39-top{grid-template-columns:1fr!important}.decision-v39-why{grid-template-columns:1fr!important}.decision-config-actions{align-items:flex-start;flex-direction:column}.decision-config-actions div{width:100%}.decision-config-btn{flex:1}}
+</style>
+
+<script id="decision-context-v310-script">
+/* v3.10 — Decision Moments must be deliberately configured with client-facing context and prerequisites. */
+const decisionActivationV310={item:null,journey:'Business',stageId:'',ownerId:'',existingMilestoneId:null};
+
+function decisionV310DefaultQuestion(item){
+  const title=String(item?.title||'').trim();
+  const key=title.toLowerCase();
+  if(key==='large drawings') return 'What level of owner drawings is sustainable for the business, and how should future withdrawals be managed?';
+  if(key.includes('dividend')) return `What should we agree about ${title.toLowerCase()}, taking account of business cash needs and the owners’ objectives?`;
+  if(key.includes('pricing')) return `What commercial decision should we make on ${title.toLowerCase()}, and what outcome are we aiming to protect?`;
+  if(key.includes('hire')||key.includes('recruit')) return `What should we agree about ${title.toLowerCase()}, and what needs to be true before we commit?`;
+  if(key.includes('sell')||key.includes('sale')||key.includes('exit')) return `What direction should we agree on ${title.toLowerCase()}, and what would make that route acceptable to the owners?`;
+  return `What should we agree about ${title.toLowerCase()}, and what is the right next step for the business and its owners?`;
+}
+function decisionV310DefaultNarrative(item){
+  const title=String(item?.title||'').trim();
+  const key=title.toLowerCase();
+  if(key==='large drawings') return 'The level and timing of drawings can materially affect cash available for working capital, investment and resilience. The discussion should establish what the business can sustainably support, what the owners need personally, and how future withdrawals will be governed.';
+  const cat=String(item?.category||'').toLowerCase();
+  if(cat.includes('structure')||cat.includes('ownership')) return `This decision affects how ownership, control, cash and value are balanced between the business and its owners. The meeting should clarify the objective, the trade-offs and the agreed approach before action is taken.`;
+  if(cat.includes('cash')||cat.includes('funding')||cat.includes('finance')) return `This decision has a direct bearing on cash capacity, financial resilience and the ability to fund the wider plan. The meeting should agree the preferred route, the constraints and the point at which action should be taken.`;
+  if(cat.includes('people')||cat.includes('team')||cat.includes('talent')) return `This decision affects capability, accountability and the organisation needed to deliver the plan. The meeting should establish the business case, the ownership of the decision and what success would look like.`;
+  if(cat.includes('transaction')||cat.includes('exit')) return `This is a strategic ownership and value decision rather than a routine action. The meeting should clarify the owners’ objectives, acceptable outcomes, key risks and the next step required to preserve optionality.`;
+  if(cat.includes('owner')) return `This decision links the owner’s personal objectives with the role, value and cash demands of the business. The meeting should make the trade-offs explicit and agree a direction that works for both the owner and the business.`;
+  return `This is a decision point rather than a checklist task. The meeting should establish why the decision matters now, what options are genuinely available, the main trade-offs and the direction the client wants to take.`;
+}
+function decisionV310NarrativeFromOwnerMoment(moment){
+  const text=String(moment?.description||'');
+  const marker='Client context · ';
+  const idx=text.indexOf(marker);
+  return idx>=0?text.slice(idx+marker.length).trim():'';
+}
+function decisionV310IsImmediateBusiness(moment){return /^Immediate\/ad-hoc Decision Moment/i.test(String(moment?.locked_teaser||''));}
+function decisionV310IsConfiguredBusiness(moment,data=currentJourneyData){
+  if(!moment)return false;
+  const meta=decisionMomentMasterMeta(moment,'Business');
+  if(!meta||moment.scope_type!=='client')return true;
+  const req=(data?.milestoneTriggers||[]).filter(t=>String(t.milestone_id)===String(moment.id));
+  return req.length>0||decisionV310IsImmediateBusiness(moment);
+}
+function decisionV310BusinessNarrative(moment){return decisionMomentMeaningfulWhy(moment)||decisionV310DefaultNarrative(decisionMomentMasterMeta(moment,'Business')||{title:moment?.title,category:''});}
+function decisionV310OwnerNarrative(moment){return decisionV310NarrativeFromOwnerMoment(moment)||decisionV310DefaultNarrative(decisionMomentMasterMeta(moment,'Owner')||{title:moment?.title,category:''});}
+
+function ensureDecisionConfigV310(){
+  let d=document.getElementById('decisionConfigV310');if(d)return d;
+  d=document.createElement('dialog');d.id='decisionConfigV310';d.className='decision-config-v310';
+  if(typeof bindSafeBackdropDismiss==='function')bindSafeBackdropDismiss(d,()=>d.close(),{dialog:true});
+  document.body.appendChild(d);return d;
+}
+function decisionV310Stage(){return (currentJourneyData?.stages||[]).find(s=>String(s.id)===String(decisionActivationV310.stageId))||null;}
+function decisionV310RequirementRows(){
+  const stageId=String(decisionActivationV310.stageId);
+  return decisionActivationV310.journey==='Owner'
+    ? (currentJourneyData?.ownerStageItems||[]).filter(x=>String(x.stage_id)===stageId)
+    : (currentJourneyData?.items||[]).filter(x=>String(x.stage_id)===stageId);
+}
+function decisionV310RequirementHtml(rows,selected=new Set()){
+  const groups=[];const by=new Map();
+  rows.forEach(row=>{const area=row.key_area||row.section_key||'Journey evidence';if(!by.has(area)){by.set(area,[]);groups.push(area)}by.get(area).push(row)});
+  return groups.map(area=>`<div class="decision-config-area">${escapeComparisonHtml(String(area).replaceAll('_',' '))}</div>${by.get(area).map(row=>`<label class="decision-config-option"><input type="checkbox" data-v310-prereq value="${escapeComparisonHtml(String(row.id))}" ${selected.has(String(row.id))?'checked':''} onchange="decisionV310UpdatePrereqCount()"><span>${escapeComparisonHtml(row.title)}</span></label>`).join('')}`).join('');
+}
+function decisionV310UpdatePrereqCount(){
+  const d=document.getElementById('decisionConfigV310');if(!d)return;const count=d.querySelectorAll('[data-v310-prereq]:checked').length;const badge=d.querySelector('.decision-config-prereq-count');if(badge)badge.textContent=`${count} selected`;const immediate=d.querySelector('#decision-v310-immediate');if(immediate&&count)immediate.checked=false;
+}
+function decisionV310ToggleImmediate(el){if(!el?.checked)return;document.querySelectorAll('#decisionConfigV310 [data-v310-prereq]').forEach(x=>x.checked=false);decisionV310UpdatePrereqCount();el.checked=true;}
+function closeDecisionConfigV310(){document.getElementById('decisionConfigV310')?.close();}
+function openDecisionConfigV310(itemId,opts={}){
+  const item=MASTER_DECISION_MOMENT_LIBRARY.find(x=>String(x.id)===String(itemId));if(!item)return;
+  decisionActivationV310.item=item;decisionActivationV310.journey=opts.journey||masterDecisionPickerState.journey||item.journey;decisionActivationV310.stageId=String(opts.stageId||masterDecisionPickerState.stageId||'');decisionActivationV310.ownerId=String(opts.ownerId||masterDecisionPickerState.ownerId||'');decisionActivationV310.existingMilestoneId=opts.existingMilestoneId?String(opts.existingMilestoneId):null;
+  const stage=decisionV310Stage(),rows=decisionV310RequirementRows();let question=decisionV310DefaultQuestion(item),narrative=decisionV310DefaultNarrative(item),selected=new Set(),immediate=false;
+  if(decisionActivationV310.existingMilestoneId&&decisionActivationV310.journey==='Business'){
+    const m=currentJourneyData?.milestones?.find(x=>String(x.id)===decisionActivationV310.existingMilestoneId);if(m){question=m.decision_prompt||question;narrative=decisionMomentMeaningfulWhy(m)||narrative;selected=new Set((currentJourneyData?.milestoneTriggers||[]).filter(t=>String(t.milestone_id)===String(m.id)).map(t=>String(t.journey_item_id)));immediate=decisionV310IsImmediateBusiness(m);}
+  }
+  const d=ensureDecisionConfigV310();const context=decisionActivationV310.journey==='Owner'?`${masterDecisionPickerOwner()?.name||'Owner'} · ${ownerJourneyStageLabel(stage)}`:`${CLIENTS[currentIdx]?.name||'Client'} · Stage ${stage?.stage_order||''} · ${stage?.name||''}`;
+  d.innerHTML=`<div class="decision-config-head"><div><div class="kicker">Configure Decision Moment</div><h3>${escapeComparisonHtml(item.title)}</h3><p>${escapeComparisonHtml(context)} · ${escapeComparisonHtml(item.category)}</p></div><button class="decision-config-close" type="button" onclick="closeDecisionConfigV310()">×</button></div><div class="decision-config-body"><div class="decision-config-grid"><div class="decision-config-field full"><label>Client-facing decision question</label><input id="decision-v310-question" value="${escapeComparisonHtml(question)}"></div><div class="decision-config-field full"><label>Conversation context</label><textarea id="decision-v310-narrative">${escapeComparisonHtml(narrative)}</textarea></div></div><div class="decision-config-explain"><strong>This wording feeds the client Meeting dashboard.</strong> The library title remains the short internal reference; the question and context explain what the client is actually being asked to consider and why it matters.</div><section class="decision-config-prereq"><div class="decision-config-prereq-head"><div><strong>What must be true before this decision is ready?</strong><span>Select the Journey evidence that should unlock the decision. Requirements are deliberately configured here rather than silently assumed from the library title.</span></div><span class="decision-config-prereq-count">${selected.size} selected</span></div><div class="decision-config-prereq-list">${decisionV310RequirementHtml(rows,selected)||'<div class="master-decision-picker-empty">No checklist evidence is available at this stage/rung.</div>'}</div><label class="decision-config-immediate"><input id="decision-v310-immediate" type="checkbox" ${immediate?'checked':''} onchange="decisionV310ToggleImmediate(this)"><span><strong>No Journey prerequisite — discuss immediately.</strong><br>Use this only for a genuine ad-hoc or time-sensitive decision that should enter the meeting without waiting for Journey evidence.</span></label></section><div class="decision-config-actions"><span>${decisionActivationV310.existingMilestoneId?'Updating the client-specific Decision Moment':'Nothing is added until this configuration is saved.'}</span><div><button class="decision-config-btn" type="button" onclick="closeDecisionConfigV310()">Cancel</button><button class="decision-config-btn primary" type="button" onclick="saveDecisionConfigV310()">${decisionActivationV310.existingMilestoneId?'Save configuration':'Add Decision Moment'}</button></div></div></div>`;
+  d.showModal();
+}
+function openExistingDecisionConfigurationV310(milestoneId){
+  const m=currentJourneyData?.milestones?.find(x=>String(x.id)===String(milestoneId));const meta=decisionMomentMasterMeta(m,'Business');if(!m||!meta)return;openDecisionConfigV310(meta.id,{journey:'Business',stageId:m.stage_id,existingMilestoneId:m.id});
+}
+
+/* Clicking Add in the firm library now opens configuration rather than creating an unconfigured moment. */
+activateMasterDecisionMoment=function(itemId,button){openDecisionConfigV310(itemId,{journey:masterDecisionPickerState.journey,stageId:masterDecisionPickerState.stageId,ownerId:masterDecisionPickerState.ownerId});};
+
+async function saveDecisionConfigV310(){
+  const item=decisionActivationV310.item,client=CLIENTS[currentIdx],stage=decisionV310Stage();if(!item||!client||!stage)return;
+  const d=document.getElementById('decisionConfigV310');const question=d?.querySelector('#decision-v310-question')?.value.trim()||'';const narrative=d?.querySelector('#decision-v310-narrative')?.value.trim()||'';const prereqs=[...d.querySelectorAll('[data-v310-prereq]:checked')].map(x=>x.value);const immediate=!!d.querySelector('#decision-v310-immediate')?.checked;
+  if(!question){alert('Add the client-facing decision question.');return}if(!narrative){alert('Add a short piece of client-facing context for the decision.');return}if(!prereqs.length&&!immediate){alert('Select at least one Journey prerequisite, or explicitly choose “No Journey prerequisite — discuss immediately”.');return}
+  const primary=d.querySelector('.decision-config-btn.primary');if(primary){primary.disabled=true;primary.textContent='Saving…'}
+  try{
+    if(decisionActivationV310.journey==='Business'){
+      let milestoneId=decisionActivationV310.existingMilestoneId;
+      const payload={stage_id:stage.id,title:item.title,locked_teaser:immediate?'Immediate/ad-hoc Decision Moment — no Journey prerequisites.':'Complete the linked Journey evidence before this decision is brought into the client meeting.',achievement_text:'The required evidence is in place and this decision is ready for client discussion.',decision_prompt:question,why_it_matters:narrative,is_active:true,scope_type:'client',client_id:client.id,updated_at:new Date().toISOString()};
+      if(milestoneId){const r=await sb.from('journey_milestones').update(payload).eq('id',milestoneId);if(r.error)throw r.error;await sb.from('journey_milestone_triggers').delete().eq('milestone_id',milestoneId);}
+      else{const stageMoments=(currentJourneyData?.milestones||[]).filter(m=>String(m.stage_id)===String(stage.id));payload.milestone_order=stageMoments.reduce((m,x)=>Math.max(m,Number(x.milestone_order)||0),0)+1;const r=await sb.from('journey_milestones').insert(payload).select().single();if(r.error)throw r.error;milestoneId=r.data.id;}
+      if(prereqs.length){const r=await sb.from('journey_milestone_triggers').insert(prereqs.map(journey_item_id=>({milestone_id:milestoneId,journey_item_id})));if(r.error)throw r.error;}
+      closeDecisionConfigV310();closeMasterDecisionPicker();await loadClientJourneyFramework();const btn=[...document.querySelectorAll('.journey-view-btn')].find(b=>b.textContent.trim()==='Business');switchJourneyView('business',btn);
+    }else{
+      const owner=(currentJourneyData?.owners||[]).find(o=>String(o.id)===String(decisionActivationV310.ownerId));if(!owner)throw new Error('The selected owner is no longer available.');
+      /* Owner library activations are created as dedicated optional templates so narrative and prerequisites never leak to another owner/client. */
+      const stageRows=(currentJourneyData?.ownerDecisionMoments||[]).filter(m=>String(m.stage_id)===String(stage.id));const nextOrder=stageRows.reduce((m,x)=>Math.max(m,Number(x.moment_order)||0),0)+1;
+      const desc=`Firm library · ${item.category}${item.source?` · ${item.source}`:''}\nClient context · ${narrative}${immediate?'\nNo Journey prerequisite · explicit immediate decision':''}`;
+      const r=await sb.from('owner_decision_moments').insert({title:item.title,description:desc,decision_prompt:question,stage_id:stage.id,moment_order:nextOrder,is_required:false,is_active:true,updated_at:new Date().toISOString()}).select().single();if(r.error)throw r.error;const momentId=r.data.id;
+      if(prereqs.length){const tr=await sb.from('owner_decision_moment_triggers').insert(prereqs.map(owner_stage_item_id=>({decision_moment_id:momentId,owner_stage_item_id})));if(tr.error)throw tr.error;}
+      const cr=await sb.from('client_owner_decisions').upsert({owner_id:owner.id,decision_moment_id:momentId,status:'unlocked',decision_text:null,decision_date:null,updated_at:new Date().toISOString()},{onConflict:'owner_id,decision_moment_id'});if(cr.error)throw cr.error;
+      closeDecisionConfigV310();closeMasterDecisionPicker();await loadClientJourneyFramework();ownerRungOpenByOwner[String(owner.id)]=String(stage.id);const btn=[...document.querySelectorAll('.journey-view-btn')].find(b=>b.textContent.trim()==='Owners');switchJourneyView('owners',btn);const selector=document.querySelector(`.owner-selector-btn[data-owner-view="${CSS.escape(String(owner.id))}"]`);selectOwnerJourney(String(owner.id),selector);
+    }
+  }catch(error){console.error('Decision Moment configuration save failed',error);alert(`The Decision Moment could not be saved. ${error.message||'Please try again.'}`);if(primary){primary.disabled=false;primary.textContent=decisionActivationV310.existingMilestoneId?'Save configuration':'Add Decision Moment'}}
+}
+
+/* Repair affordance for Decision Moments added by v3.6–v3.9 without requirements/context. */
+function enhanceUnconfiguredDecisionMomentsV310(){
+  const data=currentJourneyData;if(!data)return;
+  (data.milestones||[]).forEach(m=>{
+    if(decisionV310IsConfiguredBusiness(m,data))return;const meta=decisionMomentMasterMeta(m,'Business');if(!meta||m.scope_type!=='client')return;
+    const card=document.querySelector(`.journey-milestone[data-milestone-id="${CSS.escape(String(m.id))}"]`);if(!card)return;card.classList.add('decision-moment-v310-needs-setup');
+    const state=card.querySelector('.decision-v39-state');if(state){state.textContent='Needs setup';state.className='decision-v39-state deferred'}
+    const req=card.querySelector('.decision-v39-requirement-line');if(req)req.innerHTML='<strong>Requirements</strong><span>Not configured yet — choose the Journey evidence that should unlock this decision.</span>';
+    card.querySelectorAll('.decision-v39-meeting-btn').forEach(x=>x.remove());
+    const reveal=card.querySelector('.decision-workspace-v39');if(reveal&&!reveal.querySelector('.decision-v310-setup-note'))reveal.insertAdjacentHTML('afterbegin',`<div class="decision-v310-setup-note"><span>This library Decision Moment was added before prerequisite configuration was introduced. Configure it before it appears in a client meeting.</span><button type="button" onclick="openExistingDecisionConfigurationV310('${m.id}')">Configure now</button></div>`);
+  });
+}
+const _v310BaseLoadClientJourneyFramework=loadClientJourneyFramework;
+loadClientJourneyFramework=async function(){const result=await _v310BaseLoadClientJourneyFramework.apply(this,arguments);setTimeout(enhanceUnconfiguredDecisionMomentsV310,0);return result;};
+
+/* Enrich the meeting snapshot with the actual client-facing question and narrative. */
+const _v310BasePhase7DecisionRows=phase7DecisionRows;
+phase7DecisionRows=function(data){
+  return _v310BasePhase7DecisionRows(data).map(row=>{
+    if(row.scope==='owner'){
+      const m=(data.ownerDecisionMoments||[]).find(x=>String(x.id)===String(row.template_id));if(!m)return row;
+      const question=m.decision_prompt||decisionV310DefaultQuestion(decisionMomentMasterMeta(m,'Owner')||{title:m.title});const narrative=decisionV310OwnerNarrative(m);const req=(data.ownerDecisionTriggers||[]).filter(t=>String(t.decision_moment_id)===String(m.id));
+      const configured=req.length>0||String(m.description||'').includes('No Journey prerequisite');return {...row,question,narrative,copy:narrative||question,configured,state:configured?row.state:'locked'};
+    }
+    const m=(data.milestones||[]).find(x=>String(x.id)===String(row.id));if(!m)return row;const configured=decisionV310IsConfiguredBusiness(m,data);const question=m.decision_prompt||decisionV310DefaultQuestion(decisionMomentMasterMeta(m,'Business')||{title:m.title});const narrative=decisionV310BusinessNarrative(m);
+    return {...row,question,narrative,copy:narrative||question,configured,state:configured?row.state:'locked'};
+  });
+};
+
+/* Meeting cards now show a proper client conversation, not just the library title. */
+const _v310BaseMeetingAgendaItems=meetingAgendaItems;
+meetingAgendaItems=function(snapshot){
+  const items=_v310BaseMeetingAgendaItems(snapshot);
+  return items.map(item=>{
+    if(item.kind!=='decision')return item;
+    const candidates=(snapshot?.decisions||[]).filter(d=>String(d.title||'').trim().toLowerCase()===String(item.title||'').trim().toLowerCase()&&d.configured!==false);
+    const d=candidates.find(x=>!x.owner_name||String(item.detail||'').includes(x.owner_name))||candidates[0];
+    if(!d)return item;return {...item,question:d.question||d.title,narrative:d.narrative||d.copy||'',detail:d.narrative||d.question||item.detail};
+  });
+};
+meetingAgendaHtml=function(items,mode='prepare'){
+  if(!items.length)return '<div class="meeting-history-note">No items have been deliberately promoted into today’s meeting focus. The advisor can still run the conversation freely.</div>';
+  return `<div class="meeting-agenda-list">${items.map((x,i)=>{const n=meetingCommitmentCountForAgenda(x);if(x.kind==='decision'){return `<div class="meeting-agenda-item decision-context-v310"><span class="meeting-agenda-kind decision">Decision</span><div class="meeting-agenda-main"><span class="meeting-decision-title-v310">${escapeComparisonHtml(x.title)}</span><strong class="meeting-decision-question-v310">${escapeComparisonHtml(x.question||x.title)}</strong>${x.narrative?`<p class="meeting-decision-narrative-v310">${escapeComparisonHtml(x.narrative)}</p>`:''}${n?`<small>${n} agreed commitment${n===1?'':'s'}</small>`:''}</div>${mode==='discuss'?`<button class="meeting-agenda-action" type="button" onclick="meetingUseAgendaItem(${i},'decision')">Record decision</button>`:''}</div>`}return `<div class="meeting-agenda-item"><span class="meeting-agenda-kind ${escapeComparisonHtml(x.kind)}">${escapeComparisonHtml(meetingAgendaKindLabel(x.kind))}</span><div class="meeting-agenda-main"><strong>${escapeComparisonHtml(x.title)}</strong><span>${escapeComparisonHtml(x.detail||'')}</span>${n?`<small>${n} agreed commitment${n===1?'':'s'}</small>`:''}</div>${mode==='discuss'?`<button class="meeting-agenda-action" type="button" onclick="meetingUseAgendaItem(${i},'notes')">Add to notes</button>`:''}</div>`}).join('')}</div>`;
+};
+meetingUseAgendaItem=function(index,target){const item=activeMeetingAgenda[index];if(!item)return;const id=target==='decision'?'meeting-decisions-discussed':'meeting-notes',el=document.getElementById(id);if(!el)return;const line=item.kind==='decision'?`${item.question||item.title}${item.narrative?`\nContext: ${item.narrative}`:''}`:`${item.title}${item.detail?` — ${item.detail}`:''}`;el.value=`${el.value.trim()}${el.value.trim()?'\n\n':''}${line}`;el.focus();};
+</script>
+
+<style id="decision-cards-v311-styles">
+/* v3.11 — compact Journey Decision Moments + modal decision recording */
+.decision-moment-v39{border-radius:12px!important;box-shadow:0 8px 24px rgba(4,13,21,.08)!important}
+.decision-moment-v39 .decision-v39-main{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:16px!important;padding:14px 16px!important;align-items:start!important;background:linear-gradient(145deg,#102638,#0d2030)!important}
+.decision-moment-v39 .decision-v39-icon{display:none!important}
+.decision-v311-head-copy{min-width:0}
+.decision-v311-eyebrow{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:6px;color:#7190a5;font-size:8px;font-weight:850;letter-spacing:.1em;text-transform:uppercase}
+.decision-v311-eyebrow .decision-v311-type{color:#d3b759}
+.decision-v311-eyebrow i{width:3px;height:3px;border-radius:50%;background:#526f83}
+.decision-v311-head-copy h4{margin:0;color:#eef4f7;font-size:13.5px;line-height:1.42;font-weight:760;max-width:980px}
+.decision-v311-head-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.decision-v311-head-meta span{display:inline-flex;align-items:center;min-height:20px;padding:0 7px;border:1px solid #2d485d;border-radius:999px;background:#0b1d2b;color:#7996aa;font-size:8.5px;font-weight:700}
+.decision-v311-head-meta span.ready{border-color:#6e602a;background:#211d10;color:#dfc15e}
+.decision-v311-head-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.decision-v311-icon-btn{display:inline-flex;align-items:center;justify-content:center;height:28px;padding:0 8px;border:1px solid #35536b;border-radius:7px;background:#0b1b2a;color:#a9bfce;font-size:8.5px;font-weight:800;cursor:pointer;white-space:nowrap}
+.decision-v311-icon-btn:hover{border-color:#5b7890;background:#11283a;color:#fff}
+.decision-v311-icon-btn.configure{border-color:#7b682c;color:#e1c35e;background:#211d10}
+.decision-v311-icon-btn.remove{width:28px;padding:0;color:#8ca2b2}
+.decision-v311-icon-btn.remove:hover{border-color:#825151;background:#27191b;color:#efb1b1}
+.decision-v311-state{display:inline-flex;align-items:center;height:28px;padding:0 9px;border-radius:999px;border:1px solid #3b5266;background:#0b1b2a;color:#9db3c2;font-size:8px;font-weight:850;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap}
+.decision-v311-state.unlocked{border-color:#796728;background:#211d10;color:#e5c861}.decision-v311-state.reopened{border-color:#7a5028;background:#291c12;color:#efb16e}.decision-v311-state.achieved{border-color:#3f7058;background:#10251e;color:#9fd3b2}.decision-v311-state.deferred{border-color:#65503e;background:#211a16;color:#c8aa91}.decision-v311-state.locked{border-color:#41586b;color:#8ea6b6}.decision-v311-state.setup{border-color:#896130;background:#271d12;color:#f0bd72}
+.decision-moment-v39 .decision-workspace-v39{padding:0!important;background:#0a1926!important;border-top:1px solid #294158!important}
+.decision-v311-body{padding:13px 15px 14px}
+.decision-v311-context{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(250px,.75fr);gap:10px}
+.decision-v311-narrative,.decision-v311-readiness{border:1px solid #29455a;border-radius:9px;background:#0d1e2c;padding:11px 12px;min-width:0}
+.decision-v311-label{display:block;margin-bottom:5px;color:#708da1;font-size:8px;font-weight:850;letter-spacing:.1em;text-transform:uppercase}
+.decision-v311-narrative p{margin:0;color:#a9bdcb;font-size:10.5px;line-height:1.5}
+.decision-v311-readiness-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.decision-v311-readiness-top strong{display:block;color:#dce7ed;font-size:10.5px;line-height:1.35}
+.decision-v311-readiness-top span{display:block;margin-top:2px;color:#718a9c;font-size:9px;line-height:1.35}
+.decision-v311-count{flex:0 0 auto;color:#d6b958!important;font-size:15px!important;font-weight:800!important;line-height:1!important;margin:0!important}
+.decision-v311-progress{height:4px;margin-top:9px;border-radius:999px;background:#20384a;overflow:hidden}.decision-v311-progress i{display:block;height:100%;border-radius:inherit;background:#c9a84c}
+.decision-v311-requirements{margin-top:8px;border-top:1px solid #21394c;padding-top:7px}.decision-v311-requirements summary{cursor:pointer;list-style:none;color:#8ba3b3;font-size:9px;font-weight:750}.decision-v311-requirements summary::-webkit-details-marker{display:none}.decision-v311-requirement-list{display:grid;gap:5px;margin-top:7px}.decision-v311-requirement{display:grid;grid-template-columns:15px 1fr;gap:6px;align-items:start;color:#8fa6b6;font-size:9px;line-height:1.38}.decision-v311-requirement b{font-size:9px;color:#668297}.decision-v311-requirement.complete{color:#9ab9a8}.decision-v311-requirement.complete b{color:#6fb08c}.decision-v311-immediate{margin-top:7px;color:#d0b85f;font-size:9px;line-height:1.4}
+.decision-v311-outcome{margin-top:10px;border:1px solid #315447;border-left:3px solid #62a77c;border-radius:9px;background:#0e211c;padding:10px 12px}.decision-v311-outcome strong{display:block;color:#9fd0af;font-size:8px;font-weight:850;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}.decision-v311-outcome p{margin:0;color:#d7e5de;font-size:11px;line-height:1.48}.decision-v311-outcome small{display:block;margin-top:6px;color:#759589;font-size:8.5px}
+.decision-v311-actionbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid #223c50}.decision-v311-next{min-width:0;color:#7892a4;font-size:9.5px;line-height:1.4}.decision-v311-next strong{color:#b8cad5}.decision-v311-buttons{display:flex;gap:7px;flex:0 0 auto}.decision-v311-btn{height:32px;padding:0 11px;border-radius:7px;font:inherit;font-size:9px;font-weight:850;cursor:pointer}.decision-v311-btn.secondary{border:1px solid #38566d;background:#0b1c2a;color:#c7d7e0}.decision-v311-btn.secondary:hover{background:#112a3d}.decision-v311-btn.meeting{border:1px solid #756428;background:#211d10;color:#e3c45e}.decision-v311-btn.primary{border:1px solid #d2b44e;background:#d2b44e;color:#0b1924}.decision-v311-btn.primary:hover{filter:brightness(1.05)}
+.decision-v311-setup{display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid #6f4e27;border-left:3px solid #d69a43;border-radius:9px;background:#211a11;padding:11px 12px}.decision-v311-setup strong{display:block;color:#f0c37d;font-size:10.5px;margin-bottom:3px}.decision-v311-setup span{color:#bba98b;font-size:9.5px;line-height:1.4}.decision-v311-setup button{flex:0 0 auto;border:1px solid #d3ae56;background:#d3ae56;color:#0c1b28;border-radius:7px;padding:8px 11px;font-size:9px;font-weight:850;cursor:pointer}
+.decision-moment-v39 .decision-v39-comments{padding-left:15px!important;background:#091824!important;border-top:1px solid #21394c!important}.decision-moment-v39 .decision-v39-footer{padding-left:15px!important;background:#091824!important;min-height:34px!important}.decision-moment-v39 .decision-v39-footer>span{opacity:.7}.decision-moment-v39 .journey-milestone-comments-toggle{font-size:9px!important}
+
+/* Record Decision uses the same visual language as Configure Decision Moment. */
+.decision-record-v311{position:fixed!important;left:50%;top:50%;transform:translate(-50%,-50%);margin:0!important;width:min(900px,calc(100vw - 32px));max-height:min(850px,calc(100vh - 32px));padding:0;border:0;border-radius:18px;overflow:hidden;background:#fff;color:#102131;box-shadow:0 30px 90px rgba(7,18,29,.4)}
+.decision-record-v311::backdrop{background:rgba(7,18,29,.68);backdrop-filter:blur(3px)}
+.decision-record-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding:21px 24px 19px;background:linear-gradient(135deg,#0b1b2a,#102b41);color:#fff;border-bottom:3px solid #c9aa4a}.decision-record-head .kicker{font-size:9px;font-weight:850;letter-spacing:.14em;text-transform:uppercase;color:#d7bd69;margin-bottom:6px}.decision-record-head h3{margin:0;font-size:20px;line-height:1.25;max-width:700px}.decision-record-head p{margin:6px 0 0;color:#a9bdcc;font-size:11px}.decision-record-close{border:1px solid #426078;background:#10283a;color:#dce8ef;width:32px;height:32px;border-radius:8px;font-size:19px;cursor:pointer}
+.decision-record-body{max-height:calc(min(850px,100vh - 32px) - 88px);overflow:auto;padding:20px 24px 24px;background:#f5f7f9}.decision-record-context{padding:13px 14px;border:1px solid #d7e0e5;border-left:3px solid #c9aa4a;border-radius:10px;background:#fff;margin-bottom:14px}.decision-record-context .label{display:block;color:#7a6420;font-size:8.5px;font-weight:850;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}.decision-record-context strong{display:block;color:#17364d;font-size:13px;line-height:1.4}.decision-record-context p{margin:6px 0 0;color:#647b8b;font-size:10.5px;line-height:1.5}.decision-record-readiness{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:9px;padding-top:9px;border-top:1px solid #e7ecef;color:#6e8291;font-size:9px}.decision-record-readiness b{color:#17364d}
+.decision-record-grid{display:grid;grid-template-columns:150px minmax(230px,1fr) 155px 155px;gap:10px}.decision-record-field{display:flex;flex-direction:column;gap:5px}.decision-record-field.full{grid-column:1/-1}.decision-record-field label{font-size:8.5px;font-weight:850;letter-spacing:.09em;text-transform:uppercase;color:#5d7282}.decision-record-field input,.decision-record-field select,.decision-record-field textarea{width:100%;border:1px solid #cad6de;border-radius:8px;background:#fff;color:#102131;padding:9px 10px;font:inherit;font-size:11px;outline:none}.decision-record-field input,.decision-record-field select{height:38px}.decision-record-field textarea{min-height:86px;resize:vertical;line-height:1.48}.decision-record-field input:focus,.decision-record-field select:focus,.decision-record-field textarea:focus{border-color:#b99b43;box-shadow:0 0 0 3px rgba(201,170,74,.12)}
+.decision-record-support{margin-top:13px;border:1px solid #d8e1e6;border-radius:10px;background:#fff;overflow:hidden}.decision-record-support summary{display:flex;justify-content:space-between;gap:10px;padding:11px 13px;cursor:pointer;list-style:none;color:#29485e;font-size:10.5px;font-weight:800;background:#fbfcfd}.decision-record-support summary::-webkit-details-marker{display:none}.decision-record-support summary small{color:#7b8c98;font-size:9px;font-weight:600}.decision-record-support[open] summary{border-bottom:1px solid #e4eaee}.decision-record-support-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 13px}.decision-record-support-grid .decision-record-field.full{grid-column:auto}.decision-record-support-grid textarea{min-height:68px}.decision-record-review{max-width:180px}
+.decision-record-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:15px}.decision-record-actions .hint{color:#758795;font-size:9.5px}.decision-record-actions .buttons{display:flex;gap:8px}.decision-record-btn{border:1px solid #cbd5dc;background:#fff;color:#244258;border-radius:8px;padding:9px 13px;font-size:10px;font-weight:850;cursor:pointer}.decision-record-btn.meeting{border-color:#d2bd74;background:#fffaf0;color:#755d19}.decision-record-btn.primary{border-color:#102b41;background:#102b41;color:#fff}.decision-record-btn.achieve{border-color:#c7a642;background:#d3b650;color:#0e1b25}
+
+/* Owner cards inherit the same lighter hierarchy without changing their persistence model. */
+.owner-decision-v39{border-radius:10px!important;background:#0d1e2b!important}.owner-decision-v39-head{padding:11px 12px!important;background:linear-gradient(145deg,#102638,#0e2131)!important}.owner-decision-v39-head strong{font-size:12px!important}.owner-decision-v311-question{display:block;margin-top:7px;color:#dbe7ed;font-size:10.5px;line-height:1.42;font-weight:720}.owner-decision-v311-narrative{margin:7px 0 0;color:#829bad;font-size:9.5px;line-height:1.45}.owner-decision-v39-body{padding:9px 11px 10px!important}.owner-decision-v39-input{grid-template-columns:105px minmax(200px,1fr) auto auto!important}
+@media(max-width:900px){.decision-v311-context{grid-template-columns:1fr}.decision-record-grid{grid-template-columns:1fr 1fr}.decision-record-field.full{grid-column:1/-1}}
+@media(max-width:680px){.decision-moment-v39 .decision-v39-main{grid-template-columns:1fr!important}.decision-v311-head-actions{justify-content:flex-start}.decision-v311-actionbar,.decision-record-actions{align-items:flex-start;flex-direction:column}.decision-v311-buttons,.decision-record-actions .buttons{width:100%;flex-wrap:wrap}.decision-v311-btn,.decision-record-btn{flex:1}.decision-record-grid,.decision-record-support-grid{grid-template-columns:1fr}.decision-record-field.full,.decision-record-support-grid .decision-record-field.full{grid-column:1}.decision-record-review{max-width:none}.decision-v311-setup{align-items:flex-start;flex-direction:column}.owner-decision-v39-input{grid-template-columns:1fr!important}}
+</style>
+
+<script id="decision-cards-v311-script">
+/* v3.11 — the Journey card is now a compact decision summary; detailed recording happens in a centred workspace. */
+function decisionV311BusinessModel(moment){
+  const data=currentJourneyData||{};
+  const triggers=(data.milestoneTriggers||[]).filter(t=>String(t.milestone_id)===String(moment.id));
+  const progress=new Map((data.progress||[]).map(r=>[String(r.journey_item_id),!!r.is_complete]));
+  const record=(data.clientMilestones||[]).find(r=>String(r.milestone_id)===String(moment.id))||{};
+  const itemMap=new Map((data.items||[]).map(i=>[String(i.id),i]));
+  const complete=triggers.filter(t=>progress.get(String(t.journey_item_id))).length;
+  const hasDecision=record.status==='achieved'&&String(record.decision_text||'').trim();
+  let state=record.status==='reopened'?'reopened':hasDecision?'achieved':record.status==='deferred'?'deferred':(triggers.length===0||complete===triggers.length)?'unlocked':'locked';
+  const configured=decisionV310IsConfiguredBusiness(moment,data);
+  if(!configured)state='setup';
+  const stage=(data.stages||[]).find(s=>String(s.id)===String(moment.stage_id));
+  const meta=decisionMomentMasterMeta(moment,'Business');
+  const question=moment.decision_prompt||decisionV310DefaultQuestion(meta||{title:moment.title});
+  const narrative=decisionV310BusinessNarrative(moment);
+  const requirements=triggers.map(t=>{const item=itemMap.get(String(t.journey_item_id))||{};return {title:item.title||'Journey evidence',complete:!!progress.get(String(t.journey_item_id))};});
+  return {moment,record,triggers,complete,state,configured,stage,meta,question,narrative,requirements,meetingReady:configured&&['unlocked','reopened'].includes(state),progressPct:triggers.length?Math.round(complete/triggers.length*100):100};
+}
+function decisionV311StateLabel(state){return ({setup:'Needs setup',locked:'Waiting on evidence',unlocked:'Ready for discussion',reopened:'Needs review',achieved:'Decision recorded',deferred:'Deferred'})[state]||'Decision Moment';}
+function decisionV311RequirementHtml(model){
+  if(!model.configured)return '';
+  if(!model.triggers.length)return `<div class="decision-v311-immediate">No Journey prerequisite — this has been deliberately configured as an immediate decision.</div>`;
+  return `<details class="decision-v311-requirements"><summary>View ${model.triggers.length} prerequisite${model.triggers.length===1?'':'s'}</summary><div class="decision-v311-requirement-list">${model.requirements.map(r=>`<div class="decision-v311-requirement ${r.complete?'complete':''}"><b>${r.complete?'✓':'○'}</b><span>${escapeComparisonHtml(r.title)}</span></div>`).join('')}</div></details>`;
+}
+function decisionV311BodyHtml(model){
+  if(!model.configured){
+    return `<div class="decision-v311-body"><div class="decision-v311-setup"><div><strong>Finish setting up this Decision Moment</strong><span>Add the client-facing question, conversation narrative and the Journey evidence that should unlock it. Until then it stays out of the Meeting agenda.</span></div><button type="button" onclick="openExistingDecisionConfigurationV310('${model.moment.id}')">Configure now</button></div></div>`;
+  }
+  const readinessTitle=model.triggers.length?`${model.complete} of ${model.triggers.length} prerequisites complete`:'Immediate decision';
+  const readinessCopy=model.state==='locked'?'Complete the remaining Journey evidence before bringing this into the client conversation.':model.meetingReady?'The evidence is in place and this is now part of the next Meeting agenda.':model.state==='achieved'?'The decision has been recorded and remains available in the decision history.':model.state==='deferred'?'The decision has been deliberately deferred; reopen it when the timing changes.':'Decision status is up to date.';
+  const outcome=model.state==='achieved'?`<div class="decision-v311-outcome"><strong>Agreed direction</strong><p>${escapeComparisonHtml(model.record.decision_text||'Decision recorded.')}</p><small>${escapeComparisonHtml([model.record.decision_owner,model.record.decision_date?formatJourneyMeetingDate(model.record.decision_date):''].filter(Boolean).join(' · '))}</small></div>`:'';
+  let next='';
+  if(model.state==='locked')next='<strong>Next:</strong> complete the outstanding Journey evidence.';
+  else if(model.meetingReady)next='<strong>Next:</strong> discuss with the client and record the agreed direction.';
+  else if(model.state==='achieved')next='<strong>Recorded:</strong> revisit only if circumstances materially change.';
+  else if(model.state==='deferred')next='<strong>Deferred:</strong> retain the context and review when appropriate.';
+  const actions=[];
+  if(model.moment.scope_type==='client'&&model.meta)actions.push(`<button class="decision-v311-btn secondary" type="button" onclick="openExistingDecisionConfigurationV310('${model.moment.id}')">Configure</button>`);
+  if(model.meetingReady)actions.push(`<button class="decision-v311-btn meeting" type="button" onclick="openDecisionMomentInMeeting('${model.moment.id}')">Open in Meeting</button>`);
+  if(model.state!=='locked')actions.push(`<button class="decision-v311-btn primary" type="button" onclick="openDecisionRecordV311('${model.moment.id}')">${model.state==='achieved'?'Review decision':'Record decision'}</button>`);
+  return `<div class="decision-v311-body"><div class="decision-v311-context"><section class="decision-v311-narrative"><span class="decision-v311-label">Conversation context</span><p>${escapeComparisonHtml(model.narrative||'Use the client conversation to make the trade-offs explicit and agree a clear direction.')}</p></section><section class="decision-v311-readiness"><div class="decision-v311-readiness-top"><div><span class="decision-v311-label">Readiness</span><strong>${escapeComparisonHtml(readinessTitle)}</strong><span>${escapeComparisonHtml(readinessCopy)}</span></div><span class="decision-v311-count">${model.triggers.length?`${model.complete}/${model.triggers.length}`:'Now'}</span></div>${model.triggers.length?`<div class="decision-v311-progress"><i style="width:${model.progressPct}%"></i></div>`:''}${decisionV311RequirementHtml(model)}</section></div>${outcome}<div class="decision-v311-actionbar"><div class="decision-v311-next">${next}</div><div class="decision-v311-buttons">${actions.join('')}</div></div></div>`;
+}
+function enhanceBusinessDecisionCardsV311(){
+  const data=currentJourneyData;if(!data)return;
+  document.querySelectorAll('.journey-milestone[data-milestone-id]').forEach(card=>{
+    const id=String(card.dataset.milestoneId||'');const moment=(data.milestones||[]).find(m=>String(m.id)===id);if(!moment)return;
+    const model=decisionV311BusinessModel(moment);const main=card.querySelector('.journey-milestone-main');const reveal=card.querySelector('.journey-milestone-reveal');if(!main||!reveal)return;
+    card.dataset.v311='1';card.classList.toggle('decision-moment-v310-needs-setup',!model.configured);
+    const category=model.meta?.category||'Client decision';
+    main.innerHTML=`<div class="decision-v311-head-copy"><div class="decision-v311-eyebrow"><span class="decision-v311-type">Decision Moment</span><i></i><span>${escapeComparisonHtml(moment.title||'Decision')}</span></div><h4>${escapeComparisonHtml(model.question)}</h4><div class="decision-v311-head-meta"><span>${escapeComparisonHtml(category)}</span><span>${model.stage?`Stage ${model.stage.stage_order} · ${escapeComparisonHtml(model.stage.name)}`:'Journey decision'}</span>${model.meetingReady?'<span class="ready">Next Meeting agenda</span>':''}</div></div><div class="decision-v311-head-actions"><span class="decision-v311-state ${model.state}">${escapeComparisonHtml(decisionV311StateLabel(model.state))}</span>${moment.scope_type==='client'&&model.meta?`<button class="decision-v311-icon-btn configure" type="button" onclick="openExistingDecisionConfigurationV310('${moment.id}')">Configure</button>`:''}<button class="decision-v311-icon-btn remove" type="button" title="Remove from this client Journey" onclick="removeJourneyMilestone('${moment.id}')">×</button></div>`;
+    reveal.className=`journey-milestone-reveal decision-workspace-v39 ${model.state==='locked'?'locked':''}`;
+    reveal.innerHTML=decisionV311BodyHtml(model);
+    const footer=card.querySelector('.decision-v39-footer>span');if(footer)footer.textContent=model.meta?'Firm library · client-specific':'Journey framework';
+  });
+}
+
+function ensureDecisionRecordV311(){let d=document.getElementById('decisionRecordV311');if(d)return d;d=document.createElement('dialog');d.id='decisionRecordV311';d.className='decision-record-v311';if(typeof bindSafeBackdropDismiss==='function')bindSafeBackdropDismiss(d,()=>d.close(),{dialog:true});document.body.appendChild(d);return d;}
+function closeDecisionRecordV311(){document.getElementById('decisionRecordV311')?.close();}
+function openDecisionRecordV311(milestoneId){
+  const moment=currentJourneyData?.milestones?.find(m=>String(m.id)===String(milestoneId));if(!moment)return;const model=decisionV311BusinessModel(moment);if(!model.configured){openExistingDecisionConfigurationV310(milestoneId);return}
+  const d=ensureDecisionRecordV311();const r=model.record||{};const supportOpen=!!(r.circumstances||r.advisor_rationale||r.risks_considered||r.expected_outcome||r.review_date);
+  d.innerHTML=`<div class="decision-record-head"><div><div class="kicker">${escapeComparisonHtml(moment.title||'Decision Moment')}</div><h3>${escapeComparisonHtml(model.question)}</h3><p>${escapeComparisonHtml(model.stage?`Stage ${model.stage.stage_order} · ${model.stage.name}`:'Client Journey Decision Moment')}</p></div><button class="decision-record-close" type="button" onclick="closeDecisionRecordV311()">×</button></div><div class="decision-record-body"><section class="decision-record-context"><span class="label">Conversation context</span><strong>${escapeComparisonHtml(model.narrative||'Agree a clear direction and record the decision so it can be referred back to later.')}</strong><div class="decision-record-readiness"><span><b>${model.triggers.length?`${model.complete}/${model.triggers.length} prerequisites complete`:'Immediate decision'}</b> · ${escapeComparisonHtml(decisionV311StateLabel(model.state))}</span>${model.meetingReady?'<span>Included in next Meeting agenda</span>':''}</div></section><div class="decision-record-grid"><div class="decision-record-field"><label>Status</label><select id="milestone-status-${moment.id}"><option value="unlocked" ${model.state==='unlocked'?'selected':''}>Open</option><option value="reopened" ${model.state==='reopened'?'selected':''}>Reopened</option><option value="achieved" ${model.state==='achieved'?'selected':''}>Achieved</option><option value="deferred" ${model.state==='deferred'?'selected':''}>Deferred</option></select></div><div class="decision-record-field"><label>Decision owner</label><input id="milestone-owner-${moment.id}" value="${escapeComparisonHtml(r.decision_owner||'')}" placeholder="Who owns the decision?"></div><div class="decision-record-field"><label>Target date</label><input id="milestone-target-${moment.id}" type="date" value="${r.target_date||''}"></div><div class="decision-record-field"><label>Decision date</label><input id="milestone-date-${moment.id}" type="date" value="${r.decision_date||''}"></div><div class="decision-record-field full"><label>Decision / agreed direction</label><textarea id="milestone-decision-${moment.id}" placeholder="What was agreed? Capture the direction clearly enough to revisit at the next meeting.">${escapeComparisonHtml(r.decision_text||'')}</textarea></div></div><details class="decision-record-support" ${supportOpen?'open':''}><summary><span>Supporting advisor context</span><small>Circumstances, rationale, risks and review</small></summary><div class="decision-record-support-grid"><div class="decision-record-field full"><label>Circumstances at the time</label><textarea id="milestone-circumstances-${moment.id}" placeholder="What was happening when the decision was made?">${escapeComparisonHtml(r.circumstances||'')}</textarea></div><div class="decision-record-field full"><label>Advisor rationale</label><textarea id="milestone-rationale-${moment.id}" placeholder="Why was this direction appropriate?">${escapeComparisonHtml(r.advisor_rationale||'')}</textarea></div><div class="decision-record-field full"><label>Risks considered</label><textarea id="milestone-risks-${moment.id}" placeholder="What risks, constraints or trade-offs were considered?">${escapeComparisonHtml(r.risks_considered||'')}</textarea></div><div class="decision-record-field full"><label>Expected outcome</label><textarea id="milestone-outcome-${moment.id}" placeholder="What should change as a result?">${escapeComparisonHtml(r.expected_outcome||'')}</textarea></div><div class="decision-record-field decision-record-review"><label>Review date</label><input id="milestone-review-${moment.id}" type="date" value="${r.review_date||''}"></div></div></details><div class="decision-record-actions"><span class="hint">Save the decision once. The Journey, Meeting history and Decision Moment Library will refer back to the same record.</span><div class="buttons">${model.meetingReady?`<button class="decision-record-btn meeting" type="button" onclick="closeDecisionRecordV311();openDecisionMomentInMeeting('${moment.id}')">Open in Meeting</button>`:''}<button class="decision-record-btn" type="button" onclick="saveDecisionRecordV311('${moment.id}')">Save changes</button>${model.state!=='achieved'?`<button class="decision-record-btn achieve" type="button" onclick="saveDecisionRecordV311('${moment.id}','achieved')">Save & mark achieved</button>`:''}</div></div></div>`;d.showModal();
+}
+async function saveDecisionRecordV311(milestoneId,forceStatus=null){
+  const client=CLIENTS[currentIdx];if(!client)return false;const statusEl=document.getElementById(`milestone-status-${milestoneId}`);const status=forceStatus||statusEl?.value||'unlocked';const decision=document.getElementById(`milestone-decision-${milestoneId}`)?.value.trim()||'';
+  if(status==='achieved'&&!decision){alert('Record the agreed decision before marking this Decision Moment as achieved.');document.getElementById(`milestone-decision-${milestoneId}`)?.focus();return false}
+  let date=document.getElementById(`milestone-date-${milestoneId}`)?.value||null;if(status==='achieved'&&!date)date=new Date().toISOString().slice(0,10);
+  const payload={client_id:client.id,milestone_id:milestoneId,status,decision_owner:document.getElementById(`milestone-owner-${milestoneId}`)?.value.trim()||'',decision_date:date,target_date:document.getElementById(`milestone-target-${milestoneId}`)?.value||null,decision_text:decision,circumstances:document.getElementById(`milestone-circumstances-${milestoneId}`)?.value.trim()||'',advisor_rationale:document.getElementById(`milestone-rationale-${milestoneId}`)?.value.trim()||'',risks_considered:document.getElementById(`milestone-risks-${milestoneId}`)?.value.trim()||'',expected_outcome:document.getElementById(`milestone-outcome-${milestoneId}`)?.value.trim()||'',review_date:document.getElementById(`milestone-review-${milestoneId}`)?.value||null,decided_in_meeting_id:activeJourneyMeetingId||null,updated_at:new Date().toISOString()};
+  const {data:saved,error}=await sb.from('client_journey_milestones').upsert(payload,{onConflict:'client_id,milestone_id'}).select().single();if(error){console.error(error);alert('The Decision Moment could not be saved.');return false}
+  if(status==='achieved'){await saveDecisionMomentSnapshot(saved,milestoneId);await recordDecisionCycle(saved,'achieved')}
+  closeDecisionRecordV311();await loadClientJourneyFramework({activityLabel:'Saving Decision Moment…'});return true;
+}
+
+/* Give Owner Decision Moment cards the same client-facing hierarchy without changing their table model. */
+function enhanceOwnerDecisionCardsV311(){
+  const data=currentJourneyData;if(!data)return;document.querySelectorAll('.owner-decision-v39[data-moment-id]').forEach(card=>{if(card.dataset.v311)return;const id=String(card.dataset.momentId||'');const m=(data.ownerDecisionMoments||[]).find(x=>String(x.id)===id);if(!m)return;const q=m.decision_prompt||decisionV310DefaultQuestion(decisionMomentMasterMeta(m,'Owner')||{title:m.title});const narrative=decisionV310OwnerNarrative(m);const head=card.querySelector('.owner-decision-v39-head>div');if(head){const existing=head.querySelector('strong');if(existing)existing.insertAdjacentHTML('afterend',`<span class="owner-decision-v311-question">${escapeComparisonHtml(q)}</span>${narrative?`<p class="owner-decision-v311-narrative">${escapeComparisonHtml(narrative)}</p>`:''}`)}card.dataset.v311='1';});
+}
+function enhanceDecisionCardsV311(){enhanceBusinessDecisionCardsV311();enhanceOwnerDecisionCardsV311();}
+const _v311BaseLoadClientJourneyFramework=loadClientJourneyFramework;
+loadClientJourneyFramework=async function(){const result=await _v311BaseLoadClientJourneyFramework.apply(this,arguments);setTimeout(enhanceDecisionCardsV311,20);return result;};
+const _v311BaseSelectOwnerJourney=selectOwnerJourney;
+selectOwnerJourney=function(){const r=_v311BaseSelectOwnerJourney.apply(this,arguments);setTimeout(enhanceOwnerDecisionCardsV311,0);return r;};
+const _v311BaseOpenOwnerRung=openOwnerRung;
+openOwnerRung=function(){const r=_v311BaseOpenOwnerRung.apply(this,arguments);setTimeout(enhanceOwnerDecisionCardsV311,0);return r;};
+setTimeout(enhanceDecisionCardsV311,50);
+</script>
